@@ -3,13 +3,16 @@ import pandas as pd
 import joblib
 import shap
 import matplotlib.pyplot as plt
+from pathlib import Path
 from utils import calculate_risk_tier, process_patient_data
 
 # --- 1. LOAD ARTIFACTS ---
 @st.cache_resource
 def load_assets():
-    rf = joblib.load('models/rf_model.pkl')
-    scaler = joblib.load('models/scaler.pkl')
+    # Automatically resolves the path to the root 'models' folder
+    root_dir = Path(__file__).parent.parent
+    rf = joblib.load(root_dir / 'models' / 'rf_model.pkl')
+    scaler = joblib.load(root_dir / 'models' / 'scaler.pkl')
     return rf, scaler
 
 model, scaler = load_assets()
