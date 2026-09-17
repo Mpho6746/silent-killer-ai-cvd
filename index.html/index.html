@@ -69,9 +69,21 @@
         <div class="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-skai-secondary rounded-full mix-blend-screen filter blur-[150px] opacity-10"></div>
 
         <!-- Language Toggle -->
-        <div class="absolute top-6 right-6 z-20 flex bg-slate-800/50 rounded-full p-1 border border-slate-700 backdrop-blur-md">
-            <button onclick="toggleLanguage('en')" id="btn-lang-en" class="px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-skai-primary text-white shadow-lg">EN</button>
-            <button onclick="toggleLanguage('zu')" id="btn-lang-zu" class="px-4 py-1.5 rounded-full text-xs font-bold transition-all text-slate-400 hover:text-white">ZU</button>
+        <div class="absolute top-6 right-6 z-20 flex items-center gap-2 bg-slate-800/50 rounded-full pl-4 pr-2 py-1 border border-slate-700 backdrop-blur-md">
+            <i class="fa-solid fa-globe text-slate-400 text-xs"></i>
+            <select id="lang-select" onchange="toggleLanguage(this.value)" class="bg-transparent text-white text-xs font-bold focus:outline-none py-1.5 pr-1 cursor-pointer">
+                <option value="en" class="bg-slate-900">English</option>
+                <option value="af" class="bg-slate-900">Afrikaans</option>
+                <option value="zu" class="bg-slate-900">isiZulu</option>
+                <option value="xh" class="bg-slate-900">isiXhosa</option>
+                <option value="nr" class="bg-slate-900">isiNdebele</option>
+                <option value="st" class="bg-slate-900">Sesotho</option>
+                <option value="nso" class="bg-slate-900">Sepedi</option>
+                <option value="tn" class="bg-slate-900">Setswana</option>
+                <option value="ss" class="bg-slate-900">siSwati</option>
+                <option value="ve" class="bg-slate-900">Tshivenda</option>
+                <option value="ts" class="bg-slate-900">Xitsonga</option>
+            </select>
         </div>
 
         <div class="glass-card p-8 md:p-12 rounded-3xl flex flex-col items-center max-w-md w-full z-10 mx-4 text-center">
@@ -118,28 +130,31 @@
         <div class="w-full md:w-80 glass border-r border-slate-800 flex flex-col h-auto md:h-full shrink-0 z-20">
             <div class="p-5 md:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
                 <h2 class="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-skai-primary"></i> SKAI <span class="text-xs md:text-sm font-normal text-slate-400">Clinical</span></h2>
-                <button onclick="logout()" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <div class="flex items-center gap-1">
+                    <button onclick="reconfigureApiKey()" title="Set Gemini API Key" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-key text-sm"></i></button>
+                    <button onclick="logout()" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
             </div>
             
             <div class="p-4 bg-slate-900/20">
                 <div class="relative">
                     <i class="fa-solid fa-search absolute left-3.5 top-3 text-slate-500 text-sm"></i>
-                    <input type="text" placeholder="Search ID or Name..." class="w-full bg-slate-900 text-sm text-white rounded-xl pl-10 pr-4 py-2.5 border border-slate-700 focus:outline-none focus:border-skai-primary transition-colors">
+                    <input type="text" id="patient-search-input" oninput="filterPatients()" placeholder="Search ID or Name..." class="w-full bg-slate-900 text-sm text-white rounded-xl pl-10 pr-4 py-2.5 border border-slate-700 focus:outline-none focus:border-skai-primary transition-colors">
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-3">
+            <div id="patient-list" class="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-3">
                 <div class="flex items-center justify-between mb-1">
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="critical_queue">Critical Queue</p>
                     <span class="bg-red-500/20 text-red-400 text-[9px] px-2 py-0.5 rounded-full border border-red-500/30">2 Action Req.</span>
                 </div>
-                
+
                 <!-- Critical Patient Card -->
-                <div class="glass-card p-3 md:p-4 rounded-xl cursor-pointer hover:border-red-500/50 transition-all border border-red-500/30 relative overflow-hidden group">
+                <div data-patient-search="thabo ndlovu #8942 8942" class="glass-card p-3 md:p-4 rounded-xl hover:border-red-500/50 transition-all border border-red-500/30 relative overflow-hidden group">
                     <div class="absolute inset-0 bg-red-500/5 group-hover:bg-red-500/10 transition-colors"></div>
                     <div class="flex justify-between items-start mb-2 relative z-10">
                         <div>
-                            <span class="font-bold text-white text-sm">Thabo Ndlovu</span>
+                            <span onclick="openPatientDetail('8942')" class="font-bold text-white text-sm cursor-pointer hover:text-skai-primary hover:underline transition-colors">Thabo Ndlovu</span>
                             <p class="text-xs text-slate-400">ID: #8942 • 62y, M</p>
                         </div>
                         <div class="flex flex-col items-end">
@@ -152,15 +167,20 @@
                 </div>
 
                 <!-- Moderate Patient Card -->
-                <div class="glass p-3 md:p-4 rounded-xl cursor-pointer hover:bg-slate-800/80 transition-all border border-yellow-500/30">
+                <div data-patient-search="sarah venter #4128 4128" class="glass p-3 md:p-4 rounded-xl hover:bg-slate-800/80 transition-all border border-yellow-500/30">
                     <div class="flex justify-between items-start mb-2">
                         <div>
-                            <span class="font-bold text-white text-sm">Sarah Venter</span>
+                            <span onclick="openPatientDetail('4128')" class="font-bold text-white text-sm cursor-pointer hover:text-skai-primary hover:underline transition-colors">Sarah Venter</span>
                             <p class="text-xs text-slate-400">ID: #4128 • 58y, F</p>
                         </div>
                         <span class="text-xs bg-yellow-500 text-slate-900 px-2 py-0.5 rounded-md font-bold">58.1% Risk</span>
                     </div>
                 </div>
+
+                <p id="patient-no-results" class="hidden text-center text-xs text-slate-500 py-8">
+                    <i class="fa-solid fa-user-slash block text-2xl mb-2 text-slate-600"></i>
+                    No patients match your search.
+                </p>
             </div>
         </div>
 
@@ -245,7 +265,10 @@
          <div class="w-full md:w-80 glass border-r border-slate-800 flex flex-col h-auto md:h-full shrink-0 z-20">
             <div class="p-5 md:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
                 <h2 class="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-leaf text-skai-secondary"></i> SKAI <span class="text-xs md:text-sm font-normal text-slate-400" data-i18n="health">Health</span></h2>
-                <button onclick="logout()" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <div class="flex items-center gap-1">
+                    <button onclick="reconfigureApiKey()" title="Set Gemini API Key" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-key text-sm"></i></button>
+                    <button onclick="logout()" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
             </div>
             
             <div class="p-6 md:p-8 flex flex-col items-center border-b border-slate-800 relative overflow-hidden bg-slate-900/20">
@@ -417,6 +440,89 @@
         </div>
     </div>
 
+    <!-- STAFF MODAL: Patient Detail View -->
+    <div id="patient-detail-modal" class="fixed inset-0 z-[60] bg-black/70 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-modal w-full max-w-2xl rounded-3xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 md:p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-notes-medical text-skai-primary"></i> Patient Record</h3>
+                <button onclick="closeModal('patient-detail-modal')" class="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <div class="p-4 md:p-6 overflow-y-auto hide-scrollbar">
+                <div class="flex items-center gap-4 mb-6">
+                    <img id="detail-avatar" src="" alt="Avatar" class="w-16 h-16 md:w-20 md:h-20 rounded-full border-2 border-skai-primary shadow-lg">
+                    <div class="flex-1">
+                        <h4 id="detail-name" class="text-lg md:text-xl font-extrabold text-white"></h4>
+                        <p id="detail-id" class="text-xs md:text-sm text-slate-400"></p>
+                    </div>
+                    <span id="detail-risk" class="text-sm font-bold px-3 py-1.5 rounded-lg shadow-lg"></span>
+                </div>
+
+                <h4 class="text-[10px] md:text-xs font-bold text-skai-primary uppercase tracking-wider mb-3">Latest Vitals</h4>
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="glass-card rounded-xl p-3 text-center">
+                        <p class="text-[9px] md:text-[10px] text-slate-400 uppercase tracking-wider mb-1">Blood Pressure</p>
+                        <p id="detail-bp" class="text-sm md:text-base font-bold text-white"></p>
+                    </div>
+                    <div class="glass-card rounded-xl p-3 text-center">
+                        <p class="text-[9px] md:text-[10px] text-slate-400 uppercase tracking-wider mb-1">Max HR</p>
+                        <p id="detail-hr" class="text-sm md:text-base font-bold text-white"></p>
+                    </div>
+                    <div class="glass-card rounded-xl p-3 text-center">
+                        <p class="text-[9px] md:text-[10px] text-slate-400 uppercase tracking-wider mb-1">Cholesterol</p>
+                        <p id="detail-chol" class="text-sm md:text-base font-bold text-white"></p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="text-[10px] md:text-xs font-bold text-skai-primary uppercase tracking-wider mb-3">Known Conditions</h4>
+                        <ul id="detail-conditions" class="space-y-1.5 text-xs md:text-sm text-slate-300 list-disc list-inside"></ul>
+                    </div>
+                    <div>
+                        <h4 class="text-[10px] md:text-xs font-bold text-skai-primary uppercase tracking-wider mb-3">Current Medications</h4>
+                        <ul id="detail-medications" class="space-y-1.5 text-xs md:text-sm text-slate-300 list-disc list-inside"></ul>
+                    </div>
+                </div>
+
+                <h4 class="text-[10px] md:text-xs font-bold text-skai-primary uppercase tracking-wider mb-3">Contact & Visit Info</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs md:text-sm text-slate-300">
+                    <p><i class="fa-solid fa-phone text-slate-500 mr-2"></i><span id="detail-phone"></span></p>
+                    <p><i class="fa-solid fa-location-dot text-slate-500 mr-2"></i><span id="detail-address"></span></p>
+                    <p><i class="fa-solid fa-calendar-check text-slate-500 mr-2"></i>Last visit: <span id="detail-lastvisit"></span></p>
+                </div>
+            </div>
+
+            <div class="p-4 md:p-5 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
+                <button onclick="closeModal('patient-detail-modal')" class="px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-300 hover:text-white transition">Close</button>
+                <button onclick="closeModal('patient-detail-modal'); openModal('staff-log-modal')" class="bg-skai-primary hover:bg-blue-500 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition flex items-center gap-2 shadow-lg shadow-skai-primary/20">
+                    <i class="fa-solid fa-stethoscope"></i> Log Vitals
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETUP MODAL: Gemini API Key -->
+    <div id="api-key-modal" class="fixed inset-0 z-[70] bg-black/70 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-modal w-full max-w-md rounded-3xl overflow-hidden flex flex-col">
+            <div class="p-4 md:p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-key text-skai-primary"></i> Connect SKAI Co-Pilot</h3>
+                <button onclick="cancelApiKey()" class="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-4 md:p-6">
+                <p class="text-xs md:text-sm text-slate-400 mb-4">To chat with the AI assistant, paste a free Gemini API key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-skai-primary hover:underline">Google AI Studio</a>. It's stored only in this browser and never leaves your device except in requests directly to Google.</p>
+                <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Gemini API Key</label>
+                <input type="password" id="api-key-input" placeholder="AIzaSy..." class="form-input py-2.5 md:py-3" onkeypress="if(event.key==='Enter') saveApiKey()">
+            </div>
+            <div class="p-4 md:p-5 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
+                <button onclick="cancelApiKey()" class="px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-300 hover:text-white transition">Not Now</button>
+                <button onclick="saveApiKey()" class="bg-skai-primary hover:bg-blue-500 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition flex items-center gap-2 shadow-lg shadow-skai-primary/20">
+                    <i class="fa-solid fa-check"></i> Save Key
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -526,9 +632,10 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
             }
         }
 
-        // --- Localization Dictionary ---
+        // --- Localization Dictionary (all 11 official South African languages) ---
         const i18n = {
             en: {
+                name: "English",
                 subtitle: "Silent Killer AI",
                 btn_staff: "Staff Portal",
                 btn_patient: "Patient Tracker",
@@ -538,7 +645,19 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
                 status_low: "Optimal Health Status",
                 daily_meds: "Daily Medications"
             },
+            af: {
+                name: "Afrikaans",
+                subtitle: "Stille Moordenaar KI",
+                btn_staff: "Personeelportaal",
+                btn_patient: "Pasiëntopspoorder",
+                export_report: "Voer Uit",
+                critical_queue: "Kritieke Wagtou",
+                health: "Gesondheid",
+                status_low: "Optimale Gesondheidstatus",
+                daily_meds: "Daaglikse Medikasie"
+            },
             zu: {
+                name: "isiZulu",
                 subtitle: "I-AI ebulalayo ethule",
                 btn_staff: "Ingosi Yabasebenzi",
                 btn_patient: "Umkhondo Wezempilo",
@@ -547,19 +666,109 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
                 health: "Ezempilo",
                 status_low: "Isimo Esihle",
                 daily_meds: "Imithi Yansuku Zonke"
+            },
+            xh: {
+                name: "isiXhosa",
+                subtitle: "I-AI Yombulali Othuleyo",
+                btn_staff: "Isango Labasebenzi",
+                btn_patient: "Umkhondo Wesigulane",
+                export_report: "Thumela Ngaphandle",
+                critical_queue: "Umgca Obalulekileyo",
+                health: "Impilo",
+                status_low: "Imeko Elungileyo Yempilo",
+                daily_meds: "Amayeza Emihla Ngemihla"
+            },
+            nr: {
+                name: "isiNdebele",
+                subtitle: "I-AI Yombulali Ethulileko",
+                btn_staff: "Isango Labasebenzi",
+                btn_patient: "Umkhondo Wesiguli",
+                export_report: "Thumela Ngaphandle",
+                critical_queue: "Umugqa Obalulekileko",
+                health: "Ipilo",
+                status_low: "Isimo Esihle Sepilo",
+                daily_meds: "Imithi Yamalanga Wonke"
+            },
+            st: {
+                name: "Sesotho",
+                subtitle: "AI ea 'Mmolai ea Khutsitseng",
+                btn_staff: "Portal ea Basebetsi",
+                btn_patient: "Tataiso ea Mokuli",
+                export_report: "Romela",
+                critical_queue: "Mola oa Bohlokoa",
+                health: "Bophelo",
+                status_low: "Boemo bo Botle ba Bophelo",
+                daily_meds: "Meriana ea Letsatsi le Letsatsi"
+            },
+            nso: {
+                name: "Sepedi",
+                subtitle: "AI ya Mmolai wo Homotšego",
+                btn_staff: "Portal ya Bašomi",
+                btn_patient: "Tlhahlo ya Molwetši",
+                export_report: "Romela",
+                critical_queue: "Mola wa Bohlokwa",
+                health: "Maphelo",
+                status_low: "Boemo bjo Bobotse bja Maphelo",
+                daily_meds: "Meriana ya Letšatši le Letšatši"
+            },
+            tn: {
+                name: "Setswana",
+                subtitle: "AI ya Mmolai yo o Didimetseng",
+                btn_staff: "Portale ya Badiri",
+                btn_patient: "Motlhagiso wa Molwetse",
+                export_report: "Romela",
+                critical_queue: "Mokgwa wa Botlhokwa",
+                health: "Boitekanelo",
+                status_low: "Seemo se Sesiami sa Boitekanelo",
+                daily_meds: "Melemo ya Letsatsi le Letsatsi"
+            },
+            ss: {
+                name: "siSwati",
+                subtitle: "I-AI Yembulali Lethulele",
+                btn_staff: "Sango Lebasebenti",
+                btn_patient: "Kulandzelela Kwesiguli",
+                export_report: "Tfumela Ngaphandle",
+                critical_queue: "Luhla Lolubalulekile",
+                health: "Imphilo",
+                status_low: "Simo Lesihle Semphilo",
+                daily_meds: "Imitsi Yemalanga Onkhe"
+            },
+            ve: {
+                name: "Tshivenda",
+                subtitle: "AI ya Mmulai wo Fhemulaho",
+                btn_staff: "Portal ya Vhashumi",
+                btn_patient: "Mulandzelela wa Mulwadze",
+                export_report: "Rumela Nnḓa",
+                critical_queue: "Murongo wa Ndeme",
+                health: "Mutakalo",
+                status_low: "Vhuimo ha Mutakalo ho Vhuḓi",
+                daily_meds: "Mishonga ya Duvha na Duvha"
+            },
+            ts: {
+                name: "Xitsonga",
+                subtitle: "AI ya Mudlayi lo Rhulekeke",
+                btn_staff: "Nghenelo ya Vatirhi",
+                btn_patient: "Ku Landzelela Mubabyi",
+                export_report: "Rhumela Ehandle",
+                critical_queue: "Nkoka wa Nkoka",
+                health: "Rihanyu",
+                status_low: "Xiyimo lexinene xa Rihanyu",
+                daily_meds: "Mirhi ya Siku na Siku"
             }
         };
 
         function toggleLanguage(lang) {
+            if (!i18n[lang]) return;
             currentLang = lang;
-            document.getElementById('btn-lang-en').className = lang === 'en' ? 'px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-skai-primary text-white shadow-lg' : 'px-4 py-1.5 rounded-full text-xs font-bold transition-all text-slate-400 hover:text-white';
-            document.getElementById('btn-lang-zu').className = lang === 'zu' ? 'px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-skai-primary text-white shadow-lg' : 'px-4 py-1.5 rounded-full text-xs font-bold transition-all text-slate-400 hover:text-white';
-            
+
+            const select = document.getElementById('lang-select');
+            if (select) select.value = lang;
+
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (i18n[lang][key]) el.innerText = i18n[lang][key];
             });
-            showToast(lang === 'en' ? 'Language changed to English' : 'Ulimi lushintshwe lwaya kusiZulu', 'info');
+            showToast(`Language changed to ${i18n[lang].name}`, 'info');
         }
 
         // --- UI Utilities ---
@@ -594,23 +803,62 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
             }, 4000);
         }
 
+        // --- Voice Input (Web Speech API) ---
+        const speechLangMap = {
+            en: 'en-ZA', af: 'af-ZA', zu: 'zu-ZA', xh: 'xh-ZA', nr: 'nr-ZA',
+            st: 'st-ZA', nso: 'nso-ZA', tn: 'tn-ZA', ss: 'ss-ZA', ve: 've-ZA', ts: 'ts-ZA'
+        };
+        let speechRecognizer = null;
+
         function toggleVoice(role) {
             const micBtn = document.getElementById(`${role}-mic`);
             if(!micBtn) return;
-            isListening = !isListening;
-            
+
+            const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognitionAPI) {
+                showToast('Voice input needs Chrome or Edge — not supported in this browser.', 'alert');
+                return;
+            }
+
             if (isListening) {
+                if (speechRecognizer) speechRecognizer.stop();
+                return;
+            }
+
+            speechRecognizer = new SpeechRecognitionAPI();
+            speechRecognizer.lang = speechLangMap[currentLang] || 'en-ZA';
+            speechRecognizer.interimResults = false;
+            speechRecognizer.maxAlternatives = 1;
+
+            speechRecognizer.onstart = () => {
+                isListening = true;
                 micBtn.classList.add('listening');
                 showToast('Listening... Speak now.', 'info');
-                setTimeout(() => {
-                    if(!isListening) return;
-                    toggleVoice(role);
-                    const input = document.getElementById(`${role}-chat-input`);
-                    if(input) input.value = role === 'staff' ? "Summarize the counterfactuals for Thabo Ndlovu." : "I took a 30 minute walk today and ate a salad.";
-                }, 3000);
-            } else {
+            };
+
+            speechRecognizer.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const input = document.getElementById(`${role}-chat-input`);
+                if (input) input.value = transcript;
+            };
+
+            speechRecognizer.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    showToast('Microphone access denied. Check your browser permissions.', 'alert');
+                } else if (event.error === 'language-not-supported') {
+                    showToast('Voice input isn\'t supported for the selected language yet.', 'alert');
+                } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                    showToast('Voice recognition error. Please try again.', 'alert');
+                }
+            };
+
+            speechRecognizer.onend = () => {
+                isListening = false;
                 micBtn.classList.remove('listening');
-            }
+            };
+
+            speechRecognizer.start();
         }
 
         function generateReport() {
@@ -642,26 +890,133 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
             if(checked === total && total > 0) showToast("All daily medications logged!", "success");
         }
 
+        // --- Patient Directory ---
+        const patientsData = {
+            '8942': {
+                name: 'Thabo Ndlovu', age: 62, sex: 'M', risk: 92.4, status: 'critical',
+                bp: '160/95 mmHg', hr: 110, cholesterol: 245,
+                conditions: ['Hypertension', 'Type 2 Diabetes'],
+                medications: ['Aspirin (75mg)', 'Lisinopril (10mg)'],
+                phone: '071 234 5678', address: '12 Vilakazi St, Soweto', lastVisit: '10 Sep 2026'
+            },
+            '4128': {
+                name: 'Sarah Venter', age: 58, sex: 'F', risk: 58.1, status: 'moderate',
+                bp: '138/85 mmHg', hr: 82, cholesterol: 210,
+                conditions: ['Hyperlipidemia'],
+                medications: ['Atorvastatin (20mg)'],
+                phone: '082 345 6789', address: '45 Church St, Pretoria', lastVisit: '05 Sep 2026'
+            }
+        };
+
+        function filterPatients() {
+            const input = document.getElementById('patient-search-input');
+            const noResults = document.getElementById('patient-no-results');
+            if (!input) return;
+            const query = input.value.trim().toLowerCase();
+            const cards = document.querySelectorAll('#patient-list [data-patient-search]');
+            let anyVisible = false;
+
+            cards.forEach(card => {
+                const match = card.getAttribute('data-patient-search').includes(query);
+                card.classList.toggle('hidden', !match);
+                if (match) anyVisible = true;
+            });
+
+            if (noResults) noResults.classList.toggle('hidden', anyVisible);
+        }
+
+        function openPatientDetail(id) {
+            const p = patientsData[id];
+            if (!p) return;
+
+            document.getElementById('detail-avatar').src = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(p.name)}&backgroundColor=1e293b`;
+            document.getElementById('detail-name').innerText = p.name;
+            document.getElementById('detail-id').innerText = `ID: #${id} • ${p.age}y, ${p.sex}`;
+
+            const riskEl = document.getElementById('detail-risk');
+            riskEl.innerText = `${p.risk}% Risk`;
+            riskEl.className = 'text-sm font-bold px-3 py-1.5 rounded-lg shadow-lg ' +
+                (p.status === 'critical' ? 'bg-red-500 text-white shadow-red-900/50' :
+                 p.status === 'moderate' ? 'bg-yellow-500 text-slate-900 shadow-yellow-900/30' :
+                 'bg-skai-verified text-slate-900 shadow-emerald-900/30');
+
+            document.getElementById('detail-bp').innerText = p.bp;
+            document.getElementById('detail-hr').innerText = `${p.hr} bpm`;
+            document.getElementById('detail-chol').innerText = `${p.cholesterol} mg/dL`;
+            document.getElementById('detail-conditions').innerHTML = p.conditions.map(c => `<li>${c}</li>`).join('');
+            document.getElementById('detail-medications').innerHTML = p.medications.map(m => `<li>${m}</li>`).join('');
+            document.getElementById('detail-phone').innerText = p.phone;
+            document.getElementById('detail-address').innerText = p.address;
+            document.getElementById('detail-lastvisit').innerText = p.lastVisit;
+
+            openModal('patient-detail-modal');
+        }
+
         // --- STREAMING_CHUNK:Implementing Gemini API Chatbot integration... ---
         // --- Chat Logic & Gemini Integration ---
         function handleEnter(e, role) { if (e.key === 'Enter') sendMessage(role); }
-        function injectPatientMsg(text) { 
+        function injectPatientMsg(text) {
             const input = document.getElementById('patient-chat-input');
             if(input) { input.value = text; sendMessage('patient'); }
         }
 
+        // --- Gemini API Key Setup ---
+        const GEMINI_KEY_STORAGE = 'skai_gemini_api_key';
+        let apiKeyResolver = null;
+
+        function ensureGeminiApiKey() {
+            return new Promise((resolve) => {
+                const existing = localStorage.getItem(GEMINI_KEY_STORAGE);
+                if (existing) { resolve(existing); return; }
+                apiKeyResolver = resolve;
+                const input = document.getElementById('api-key-input');
+                if (input) input.value = '';
+                openModal('api-key-modal');
+            });
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('api-key-input');
+            const key = input ? input.value.trim() : '';
+            if (!key) {
+                showToast('Please paste a valid API key.', 'warning');
+                return;
+            }
+            localStorage.setItem(GEMINI_KEY_STORAGE, key);
+            closeModal('api-key-modal');
+            showToast('Gemini API key saved to this browser.', 'success');
+            if (apiKeyResolver) { apiKeyResolver(key); apiKeyResolver = null; }
+        }
+
+        function cancelApiKey() {
+            closeModal('api-key-modal');
+            if (apiKeyResolver) { apiKeyResolver(''); apiKeyResolver = null; }
+        }
+
+        function reconfigureApiKey() {
+            localStorage.removeItem(GEMINI_KEY_STORAGE);
+            ensureGeminiApiKey();
+        }
+
         async function fetchGeminiResponse(role, userMessage) {
-            const systemPrompt = role === 'staff' 
-                ? "Act as SKAI, an advanced clinical AI assistant for doctors monitoring cardiovascular disease. You interpret SHAP values, summarize risk counterfactuals, and provide medical-grade insights. Keep answers highly professional, concise, and formatted beautifully using HTML (e.g. <strong> for emphasis, <ul> for lists). If asked about Thabo Ndlovu, mention his risk is 92.4% driven by high BP and low max HR." 
+            let systemPrompt = role === 'staff'
+                ? "Act as SKAI, an advanced clinical AI assistant for doctors monitoring cardiovascular disease. You interpret SHAP values, summarize risk counterfactuals, and provide medical-grade insights. Keep answers highly professional, concise, and formatted beautifully using HTML (e.g. <strong> for emphasis, <ul> for lists). If asked about Thabo Ndlovu, mention his risk is 92.4% driven by high BP and low max HR."
                 : "Act as SKAI, an empathetic, friendly health tracking AI for a patient named John Doe. You provide simple, encouraging advice about cardiovascular health, diet, and exercise. Do NOT give formal medical diagnoses. Format answers beautifully using HTML (e.g. <strong> for emphasis, simple <ul> lists). Be very encouraging.";
+
+            const langName = (i18n[currentLang] && i18n[currentLang].name) || 'English';
+            if (currentLang !== 'en') {
+                systemPrompt += ` Respond ONLY in ${langName}, one of South Africa's official languages, regardless of what language the user writes in. If a medical or technical term has no natural ${langName} equivalent, keep the English term and add a short ${langName} explanation in parentheses.`;
+            }
 
             const payload = {
                 contents: [{ parts: [{ text: userMessage }] }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
             };
-            
-            // Empty API key string - environment will inject it automatically
-            const apiKey = ""; 
+
+            const apiKey = await ensureGeminiApiKey();
+            if (!apiKey) {
+                return "I need a Gemini API key to respond. Send another message to set one up.";
+            }
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
             try {
@@ -671,7 +1026,18 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
                     body: JSON.stringify(payload)
                 });
                 const result = await response.json();
-                
+
+                if (!response.ok) {
+                    console.error('Gemini API error:', result);
+                    if (response.status === 400 || response.status === 401 || response.status === 403) {
+                        localStorage.removeItem(GEMINI_KEY_STORAGE);
+                        showToast('Your Gemini API key was rejected. Please enter a valid key.', 'alert');
+                    } else {
+                        showToast(`Gemini API error (${response.status}). See console for details.`, 'alert');
+                    }
+                    return "I'm having trouble reaching the AI service right now. Please check the API key and try again.";
+                }
+
                 if (result.candidates && result.candidates.length > 0) {
                     let text = result.candidates[0].content.parts[0].text;
                     text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -679,9 +1045,11 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
                     text = text.replace(/\n/g, '<br>');
                     return text;
                 }
+                console.warn('Gemini returned no candidates:', result);
                 return "I'm having trouble processing that right now. Please try again.";
             } catch (error) {
                 console.error("Gemini API Error:", error);
+                showToast('Network error reaching the Gemini API.', 'alert');
                 return "Connection error. Please try again.";
             }
         }
@@ -958,6 +1326,11 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
         window.handleLogin = handleLogin;
         window.login = login;
         window.logout = logout;
+        window.filterPatients = filterPatients;
+        window.saveApiKey = saveApiKey;
+        window.cancelApiKey = cancelApiKey;
+        window.reconfigureApiKey = reconfigureApiKey;
+        window.openPatientDetail = openPatientDetail;
     </script>
 </body>
 </html>
