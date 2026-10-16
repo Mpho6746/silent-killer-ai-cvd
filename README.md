@@ -118,7 +118,7 @@ A web app (FastAPI backend + HTML/JS front end) built on the trained models. Eve
 **For everyone**
 - **SKAI advisor**: an offline assistant that explains *why* the risk is what it is, *how to lower it* and *when to see a doctor*, using the real model output.
 - **Model & bias page**: held-out performance of both models and the bias-audit charts from notebook 06.
-- **10 languages**: English plus all nine official indigenous South African languages. Translations need native-speaker review before use with real patients.
+- **11 languages**: all of South Africa's official spoken languages (English, Afrikaans and the nine indigenous languages). Translations need native-speaker review before use with real patients.
 
 | Endpoint | Purpose |
 |---|---|

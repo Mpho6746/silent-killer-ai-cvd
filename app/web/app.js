@@ -360,8 +360,12 @@ const SKAI = (() => {
         $('queue-alerts').classList.toggle('hidden', !flagged);
         $('queue-alerts').textContent = t('alerts_count', { n: flagged });
         if (!state.queue.length) { $('queue').innerHTML = `<p class="text-xs text-slate-500">${t('no_patients')}</p>`; return; }
+        // Live search by name or ID
+        const query = $('queue-search').value.trim().toLowerCase();
+        const shown = state.queue.filter(q => !query || `${q.name} ${q.id}`.toLowerCase().includes(query));
+        if (!shown.length) { $('queue').innerHTML = `<p class="text-xs text-slate-500">${t('no_match')}</p>`; return; }
         const flagStyle = { high_risk: 'bg-red-500/20 text-red-300', rising: 'bg-orange-500/20 text-orange-300', follow_up_due: 'bg-amber-500/20 text-amber-300' };
-        $('queue').innerHTML = state.queue.map(q => {
+        $('queue').innerHTML = shown.map(q => {
             const change = q.change == null ? '' : `<span class="${q.change > 0 ? 'text-red-400' : 'text-emerald-400'} text-[10px] font-bold">${q.change > 0 ? '▲' : '▼'} ${Math.abs(q.change * 100).toFixed(0)}</span>`;
             const when = q.days_since === 0 ? t('today') : t('days_ago', { n: q.days_since });
             return `
@@ -477,6 +481,36 @@ const SKAI = (() => {
         setTimeout(() => addMsg(found ? answer(found) : t('a_fallback'), 'ai'), 250);
     }
 
+    // ---------- voice input (Web Speech API; Chrome/Edge) ----------
+    const SPEECH_LANG = {
+        en: 'en-ZA', af: 'af-ZA', zu: 'zu-ZA', xh: 'xh-ZA', nr: 'nr-ZA', nso: 'nso-ZA',
+        st: 'st-ZA', tn: 'tn-ZA', ss: 'ss-ZA', ve: 've-ZA', ts: 'ts-ZA',
+    };
+    let recognizer = null;
+
+    function toggleVoice() {
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Recognition) { toast(t('voice_unsupported'), 'warning'); return; }
+        if (recognizer) { recognizer.stop(); return; }
+
+        recognizer = new Recognition();
+        recognizer.lang = SPEECH_LANG[state.lang] || 'en-ZA';
+        recognizer.interimResults = false;
+        recognizer.maxAlternatives = 1;
+        recognizer.onstart = () => { $('mic-btn').classList.add('listening'); toast(t('voice_listening'), 'info'); };
+        recognizer.onresult = e => {
+            $('chat-input').value = e.results[0][0].transcript;
+            ask();                                   // send the spoken question straight to the advisor
+        };
+        recognizer.onerror = e => {
+            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast(t('voice_denied'), 'error');
+            else if (e.error === 'language-not-supported') toast(t('voice_lang_unsupported'), 'warning');
+            else if (e.error !== 'no-speech' && e.error !== 'aborted') toast(t('voice_error'), 'error');
+        };
+        recognizer.onend = () => { $('mic-btn').classList.remove('listening'); recognizer = null; };
+        recognizer.start();
+    }
+
     // ---------- model & bias page ----------
     async function renderModels() {
         if (!state.modelInfo) {
@@ -552,6 +586,7 @@ const SKAI = (() => {
 
     document.addEventListener('DOMContentLoaded', init);
 
-    return { enter, home, showTab, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask,
+    return { enter, home, showTab, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
+             filterQueue: renderQueue,
              showModels: () => enter('patient', 'models') };
 })();

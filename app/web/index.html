@@ -37,6 +37,8 @@
         input[type=range] { width: 100%; accent-color: #0ea5e9; }
         .chip { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
         .tab-active { background: #0ea5e9; color: #fff; }
+        .listening { background: #ef4444 !important; color: #fff !important; animation: pulseMic 1.5s infinite; }
+        @keyframes pulseMic { 50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.6); } }
         .tier-low { color: #10b981; } .tier-moderate { color: #eab308; } .tier-high { color: #f97316; } .tier-critical { color: #ef4444; }
         .bg-tier-low { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.5); }
         .bg-tier-moderate { background: rgba(234,179,8,.15); border-color: rgba(234,179,8,.5); }
@@ -94,7 +96,11 @@
             <h2 class="text-xl font-extrabold flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-skai-primary"></i> SKAI</h2>
             <button onclick="SKAI.newPatient()" class="text-xs bg-skai-primary hover:bg-sky-500 text-white font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-plus mr-1"></i><span data-i18n="new_patient">New patient</span></button>
         </div>
-        <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+        <div class="px-4 pt-4 relative">
+            <i class="fa-solid fa-search absolute left-7 top-[26px] text-slate-500 text-xs"></i>
+            <input id="queue-search" type="search" class="field pl-9 text-xs" data-i18n-placeholder="search_ph" placeholder="Search ID or name..." oninput="SKAI.filterQueue()">
+        </div>
+        <div class="px-4 pt-3 pb-2 flex items-center justify-between">
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="triage_queue">Triage queue</p>
             <span id="queue-alerts" class="chip bg-red-500/20 text-red-300 border border-red-500/30 hidden"></span>
         </div>
@@ -194,8 +200,9 @@
                             <div id="chat" class="flex-1 overflow-y-auto space-y-2 max-h-56 text-xs pr-1"></div>
                             <div id="chat-chips" class="flex flex-wrap gap-1.5 mt-2"></div>
                             <form class="mt-2 flex gap-2" onsubmit="event.preventDefault(); SKAI.ask();">
+                                <button type="button" id="mic-btn" onclick="SKAI.toggleVoice()" class="bg-slate-800 border border-slate-600 text-slate-300 hover:text-white rounded-lg px-3" aria-label="Voice input"><i class="fa-solid fa-microphone"></i></button>
                                 <input id="chat-input" class="field text-xs" data-i18n-placeholder="chat_placeholder" placeholder="Ask about the result...">
-                                <button class="bg-skai-secondary text-slate-900 rounded-lg px-3"><i class="fa-solid fa-paper-plane"></i></button>
+                                <button class="bg-skai-secondary text-slate-900 rounded-lg px-3" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
                             </form>
                         </div>
                     </div>

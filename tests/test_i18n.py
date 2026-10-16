@@ -7,7 +7,7 @@ from pathlib import Path
 
 WEB = Path(__file__).resolve().parent.parent / "app" / "web"
 I18N = (WEB / "i18n.js").read_text(encoding="utf-8")
-LANGS = ["en", "zu", "xh", "nr", "nso", "st", "tn", "ss", "ve", "ts"]
+LANGS = ["en", "af", "zu", "xh", "nr", "nso", "st", "tn", "ss", "ve", "ts"]
 
 
 def keys_for(lang):
