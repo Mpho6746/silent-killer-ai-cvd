@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SKAI - Silent Killer AI</title>
+    <script src="https://cdn.tailwindcss.com/3.4.5"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        slate: { 950: '#020617', 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
+                        skai: { primary: '#0ea5e9', secondary: '#14b8a6', alert: '#ef4444', verified: '#10b981', unverified: '#f59e0b' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020617; color: #f8fafc; }
+        .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glass-card { background: linear-gradient(145deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4); }
+        .fade-in { animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .field-label { display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; }
+        .field { width: 100%; background: #0f172a; color: #fff; font-size: 14px; border-radius: 10px; padding: 8px 12px; border: 1px solid #334155; }
+        .field:focus { outline: none; border-color: #0ea5e9; }
+        .field:invalid { border-color: #ef4444; }
+        .lang-select option, .field option { background-color: #0f172a; color: #f8fafc; }
+        input[type=range] { width: 100%; accent-color: #0ea5e9; }
+        .chip { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+        .tab-active { background: #0ea5e9; color: #fff; }
+        .tier-low { color: #10b981; } .tier-moderate { color: #eab308; } .tier-high { color: #f97316; } .tier-critical { color: #ef4444; }
+        .bg-tier-low { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.5); }
+        .bg-tier-moderate { background: rgba(234,179,8,.15); border-color: rgba(234,179,8,.5); }
+        .bg-tier-high { background: rgba(249,115,22,.15); border-color: rgba(249,115,22,.5); }
+        .bg-tier-critical { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.5); }
+    </style>
+</head>
+<body class="min-h-screen font-sans">
+
+<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- ===================== HOME / ROLE SELECT ===================== -->
+<section id="view-home" class="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
+    <div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-skai-primary rounded-full filter blur-[150px] opacity-10"></div>
+    <div class="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-skai-secondary rounded-full filter blur-[150px] opacity-10"></div>
+
+    <div class="absolute top-5 right-5 flex items-center gap-2 bg-slate-800/60 rounded-full pl-4 pr-2 py-1 border border-slate-700">
+        <i class="fa-solid fa-globe text-skai-primary text-xs"></i>
+        <select aria-label="Language" class="lang-select bg-transparent text-white text-xs font-bold py-1.5 focus:outline-none cursor-pointer"></select>
+    </div>
+
+    <div class="glass-card rounded-3xl p-8 md:p-12 max-w-2xl w-full text-center z-10 fade-in">
+        <div class="w-20 h-20 mx-auto mb-5 bg-slate-900 rounded-full border-2 border-skai-primary flex items-center justify-center">
+            <i class="fa-solid fa-heart-pulse text-4xl text-skai-primary"></i>
+        </div>
+        <h1 class="text-5xl font-extrabold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">SKAI</h1>
+        <p class="text-skai-primary text-xs font-semibold tracking-[0.3em] uppercase mt-1" data-i18n="app_subtitle">Silent Killer AI</p>
+        <p class="text-slate-300 text-sm mt-4 mb-8" data-i18n="tagline">Early cardiovascular risk screening with explainable AI</p>
+
+        <div class="grid sm:grid-cols-2 gap-4 text-left">
+            <button onclick="SKAI.enter('clinician')" class="glass rounded-2xl p-5 hover:border-skai-primary border border-slate-700 transition group">
+                <i class="fa-solid fa-stethoscope text-2xl text-skai-primary mb-3"></i>
+                <div class="font-bold text-white" data-i18n="role_clinician">Clinician dashboard</div>
+                <div class="text-xs text-slate-400 mt-1" data-i18n="role_clinician_desc">Triage queue, clinical risk assessment and patient records</div>
+            </button>
+            <button onclick="SKAI.enter('patient')" class="glass rounded-2xl p-5 hover:border-skai-secondary border border-slate-700 transition group">
+                <i class="fa-solid fa-user-shield text-2xl text-skai-secondary mb-3"></i>
+                <div class="font-bold text-white" data-i18n="role_patient">Patient self-check</div>
+                <div class="text-xs text-slate-400 mt-1" data-i18n="role_patient_desc">Check your heart risk using things you already know</div>
+            </button>
+        </div>
+        <button onclick="SKAI.showModels()" class="mt-6 text-xs text-slate-400 hover:text-white underline underline-offset-4">
+            <i class="fa-solid fa-scale-balanced mr-1"></i><span data-i18n="nav_models">Model &amp; bias</span>
+        </button>
+        <p class="text-[11px] text-slate-500 mt-6" data-i18n="demo_note">Demo version: patient records are stored only on this computer.</p>
+    </div>
+</section>
+
+<!-- ===================== WORKSPACE (clinician + patient) ===================== -->
+<section id="view-work" class="hidden min-h-screen flex-col md:flex-row">
+
+    <!-- Triage queue (clinician only) -->
+    <aside id="queue-panel" class="w-full md:w-80 glass border-r border-slate-800 flex flex-col md:h-screen md:sticky md:top-0 shrink-0">
+        <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+            <h2 class="text-xl font-extrabold flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-skai-primary"></i> SKAI</h2>
+            <button onclick="SKAI.newPatient()" class="text-xs bg-skai-primary hover:bg-sky-500 text-white font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-plus mr-1"></i><span data-i18n="new_patient">New patient</span></button>
+        </div>
+        <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="triage_queue">Triage queue</p>
+            <span id="queue-alerts" class="chip bg-red-500/20 text-red-300 border border-red-500/30 hidden"></span>
+        </div>
+        <div id="queue" class="flex-1 overflow-y-auto p-4 pt-0 space-y-2 max-h-72 md:max-h-none"></div>
+    </aside>
+
+    <main class="flex-1 min-w-0">
+        <!-- top bar -->
+        <header class="glass border-b border-slate-800 px-4 md:px-6 py-3 flex flex-wrap items-center gap-3 sticky top-0 z-30">
+            <h2 id="patient-brand" class="hidden text-lg font-extrabold items-center gap-2"><i class="fa-solid fa-leaf text-skai-secondary"></i> SKAI</h2>
+            <nav class="flex bg-slate-900/70 rounded-xl p-1 border border-slate-800 text-xs font-bold">
+                <button id="tab-assess" onclick="SKAI.showTab('assess')" class="px-3 py-1.5 rounded-lg tab-active"><i class="fa-solid fa-notes-medical mr-1"></i><span data-i18n="nav_assess">Assessment</span></button>
+                <button id="tab-models" onclick="SKAI.showTab('models')" class="px-3 py-1.5 rounded-lg text-slate-300"><i class="fa-solid fa-scale-balanced mr-1"></i><span data-i18n="nav_models">Model &amp; bias</span></button>
+            </nav>
+            <div id="mode-toggle" class="flex bg-slate-900/70 rounded-xl p-1 border border-slate-800 text-xs font-bold">
+                <button id="mode-clinical" onclick="SKAI.setMode('clinical')" class="px-3 py-1.5 rounded-lg tab-active" data-i18n="mode_clinical">Clinical assessment</button>
+                <button id="mode-lifestyle" onclick="SKAI.setMode('lifestyle')" class="px-3 py-1.5 rounded-lg text-slate-300" data-i18n="mode_lifestyle">Lifestyle check</button>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+                <select aria-label="Language" class="lang-select bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5 focus:outline-none cursor-pointer"></select>
+                <button onclick="SKAI.home()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" title="Home"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+        </header>
+
+        <!-- ===== Assessment tab ===== -->
+        <div id="panel-assess" class="p-4 md:p-6 grid xl:grid-cols-5 gap-5">
+            <!-- form -->
+            <div class="xl:col-span-2 space-y-5">
+                <div class="glass-card rounded-2xl p-5">
+                    <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-id-card text-skai-primary mr-2"></i><span data-i18n="patient_details">Patient details</span></h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="field-label" data-i18n="patient_name" for="p-name">Full name</label><input id="p-name" class="field" maxlength="80"></div>
+                        <div><label class="field-label" data-i18n="patient_id" for="p-id">Patient ID</label><input id="p-id" class="field" maxlength="40"></div>
+                    </div>
+                    <label class="flex items-center gap-2 mt-3 text-xs text-slate-300 cursor-pointer">
+                        <input id="p-save" type="checkbox" class="accent-sky-500" checked> <span data-i18n="save_record">Save to patient record</span>
+                    </label>
+                </div>
+
+                <form id="assess-form" class="glass-card rounded-2xl p-5" onsubmit="event.preventDefault(); SKAI.assess();">
+                    <div id="form-fields"></div>
+                    <p id="lifestyle-optional" class="hidden text-[11px] text-slate-500 mt-3" data-i18n="optional_hint">Optional: leave blank if unknown, the study average is used.</p>
+                    <button id="assess-btn" type="submit" class="mt-5 w-full bg-gradient-to-r from-skai-primary to-blue-600 hover:from-sky-500 hover:to-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n="assess">Assess risk</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- results -->
+            <div class="xl:col-span-3 space-y-5">
+                <div id="result-empty" class="glass-card rounded-2xl p-10 text-center text-slate-400">
+                    <i class="fa-solid fa-heart-circle-check text-4xl text-slate-600 mb-3"></i>
+                    <p class="text-sm" data-i18n="result_empty">Enter the measurements and press "Assess risk" to see the result.</p>
+                </div>
+
+                <div id="result" class="hidden space-y-5">
+                    <div class="glass-card rounded-2xl p-5 grid md:grid-cols-3 gap-5 items-center">
+                        <div id="tier-box" class="rounded-2xl border p-5 text-center">
+                            <p class="text-[10px] uppercase tracking-wider text-slate-300 font-bold" data-i18n="risk_estimate">Estimated risk</p>
+                            <p id="risk-value" class="text-5xl font-black mt-1">--</p>
+                            <p id="risk-tier" class="text-sm font-bold mt-1"></p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <h3 class="text-sm font-bold text-white mb-2" data-i18n="drivers_title">What is driving this result</h3>
+                            <div class="h-52"><canvas id="drivers-chart"></canvas></div>
+                        </div>
+                        <p id="result-notes" class="md:col-span-3 text-[11px] text-slate-400"></p>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-5">
+                        <div class="glass-card rounded-2xl p-5">
+                            <h3 class="text-sm font-bold text-white" data-i18n="whatif_title">What-if: adjust and re-score</h3>
+                            <p class="text-[11px] text-slate-400 mb-3" data-i18n="whatif_hint">Move a slider to see how the model's risk changes.</p>
+                            <div id="whatif-sliders" class="space-y-4"></div>
+                            <div class="mt-4 flex items-baseline justify-between border-t border-slate-700/50 pt-3">
+                                <span class="text-xs text-slate-400" data-i18n="whatif_result">Re-scored risk</span>
+                                <span><span id="whatif-value" class="text-2xl font-black">--</span> <span id="whatif-delta" class="text-xs font-bold"></span></span>
+                            </div>
+                        </div>
+                        <div class="glass-card rounded-2xl p-5">
+                            <h3 id="plan-title" class="text-sm font-bold text-white mb-3" data-i18n="plan_title">Risk-reduction plan</h3>
+                            <div id="projection" class="hidden h-44 mb-3"><canvas id="projection-chart"></canvas></div>
+                            <ul id="plan" class="space-y-2 text-sm"></ul>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-5">
+                        <div class="glass-card rounded-2xl p-5">
+                            <h3 class="text-sm font-bold text-white mb-3" data-i18n="history_title">Risk over time</h3>
+                            <div class="h-44"><canvas id="history-chart"></canvas></div>
+                            <p id="history-empty" class="text-xs text-slate-500" data-i18n="history_empty">Save assessments to a patient record to track them over time.</p>
+                        </div>
+                        <div class="glass-card rounded-2xl p-5 flex flex-col">
+                            <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                                <span class="w-2 h-2 bg-skai-secondary rounded-full animate-pulse"></span><span data-i18n="advisor_title">SKAI advisor</span>
+                            </h3>
+                            <div id="chat" class="flex-1 overflow-y-auto space-y-2 max-h-56 text-xs pr-1"></div>
+                            <div id="chat-chips" class="flex flex-wrap gap-1.5 mt-2"></div>
+                            <form class="mt-2 flex gap-2" onsubmit="event.preventDefault(); SKAI.ask();">
+                                <input id="chat-input" class="field text-xs" data-i18n-placeholder="chat_placeholder" placeholder="Ask about the result...">
+                                <button class="bg-skai-secondary text-slate-900 rounded-lg px-3"><i class="fa-solid fa-paper-plane"></i></button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button id="pdf-btn" onclick="SKAI.downloadPdf()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm font-bold px-4 py-2 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-file-pdf text-red-400 mr-1"></i><span data-i18n="download_pdf">Download PDF report</span>
+                        </button>
+                        <span id="pdf-hint" class="text-xs text-slate-500" data-i18n="save_first">Save to a patient record to download a report.</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-info mr-1"></i><span data-i18n="disclaimer">Screening aid, not a diagnosis. Always discuss results with a clinician.</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Model & bias tab ===== -->
+        <div id="panel-models" class="hidden p-4 md:p-6 space-y-5"></div>
+    </main>
+</section>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

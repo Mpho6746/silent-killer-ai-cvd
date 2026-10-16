@@ -19,7 +19,7 @@ The pipeline is a sequence of five notebooks, each consuming the previous stage'
 4. **[04_evaluation.ipynb](notebooks/04_evaluation.ipynb)** — evaluates all three trained models on the genuinely held-out test set: per-model accuracy/precision/recall/F1, full classification reports, confusion matrices, ROC curves, and a consolidated "Results Summary" narrative walking through the whole project end-to-end.
 5. **[05_xai.ipynb](notebooks/05_xai.ipynb)** — explainability via SHAP: a global beeswarm plot of feature importance, a per-patient waterfall plot, and a written analysis connecting the top SHAP features back to specific findings from the EDA.
 
-The same trained model and scaler power **[App/streamlit_app.py](App/streamlit_app.py)**, a live risk-assessment tool with per-patient SHAP explanations.
+The trained models power **SKAI**, a web app ([app/](app/)) for clinicians and patients, described below. A simpler Streamlit tool ([app/streamlit_app.py](app/streamlit_app.py)) is kept as a backup.
 
 ### Outlier Handling: We Chose to Keep Them
 
@@ -100,6 +100,35 @@ python -m src.bias_audit     # subgroup audit + cross-dataset test -> reports/mu
 
 This is a prototype trained on a single, static ~300-row dataset — see the "Scalability & Next Steps" section at the end of [04_evaluation.ipynb](notebooks/04_evaluation.ipynb) for a full discussion of what it would take to move toward something production-ready (more/broader data, scheduled retraining, drift monitoring).
 
+## The SKAI App
+
+A web app (FastAPI backend + HTML/JS front end) built on the trained models. Every number it shows comes from the models; nothing is simulated.
+
+**Clinician dashboard**
+- **Triage queue**: every patient's latest risk, sorted so the most urgent come first, with proactive alerts: *High risk*, *Rising* (risk up 10+ points since the last assessment) and *Follow-up due* (high-risk patient not re-assessed in 30 days).
+- **Clinical assessment** with the tuned Random Forest: risk %, risk tier and a per-patient SHAP chart of what drives the result.
+- **What-if sliders** (BP, cholesterol, max heart rate, ST depression) that re-run the model live.
+- **Risk-reduction plan**: the model re-scored with each guideline target (BP 120, cholesterol 200, fasting sugar < 120). It only lists changes that actually lower the risk.
+- **Risk over time** chart and a **downloadable PDF report** for every saved assessment.
+
+**Patient self-check**: uses the South African Heart Disease model and only things a person can know without hospital tests (age, blood pressure, smoking, family history, height/weight, LDL if known).
+- **10-year projection**: the risk if nothing changes vs. with each change (stop smoking, BP 120, LDL 3.0, BMI 25).
+- Unknown values fall back to the study average, and inputs outside the study's range are capped. Both are shown to the user.
+
+**For everyone**
+- **SKAI advisor**: an offline assistant that explains *why* the risk is what it is, *how to lower it* and *when to see a doctor*, using the real model output.
+- **Model & bias page**: held-out performance of both models and the bias-audit charts from notebook 06.
+- **10 languages**: English plus all nine official indigenous South African languages. Translations need native-speaker review before use with real patients.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/clinical/assess` | clinical risk + SHAP drivers + plan (saved if a patient is given) |
+| `POST /api/lifestyle/assess` | lifestyle risk + 10-year projection + plan |
+| `GET /api/patients` | triage queue with trends and alerts |
+| `GET /api/patients/{id}` | one patient's full history |
+| `GET /api/assessments/{id}/report.pdf` | PDF summary |
+| `GET /api/model-info` | model metrics + bias audit tables |
+
 ## How to Run
 
 **Requirements:** Python 3.11, packages in [requirements.txt](requirements.txt).
@@ -120,10 +149,24 @@ jupyter nbconvert --to notebook --execute --inplace notebooks/05_xai.ipynb
 
 Or open them in Jupyter/VS Code and run all cells in order.
 
-**Launch the risk-assessment app** (requires the pipeline above to have been run at least once, so `models/rf_model.pkl` and `models/scaler.pkl` exist):
+**Launch the SKAI web app** (needs the models from the pipeline above; they are committed, so this works straight away):
 
 ```bash
-streamlit run App/streamlit_app.py
+python run_app.py
+```
+
+This opens http://127.0.0.1:8000. Interactive API docs are at `/docs`. On first run the app creates a local patient database (`data/app/skai.db`, not committed) and fills it with clearly-labelled `DEMO-` patients. Delete that file to start fresh.
+
+**Run the tests:**
+
+```bash
+python -m pytest
+```
+
+**Backup Streamlit tool:**
+
+```bash
+streamlit run app/streamlit_app.py
 ```
 
 ## Project Structure
@@ -134,7 +177,7 @@ data/
   raw/SAHeart.csv            South African Heart Disease dataset
   processed/heart_cleaned.csv   scaled training split (+ engineered hr_reserve, bp_risk_flag)
   processed/heart_test.csv      held-out test split (unscaled)
-models/                      saved scaler.pkl + trained model .pkl files
+models/                      deployed clinical model (rf_model.pkl + scaler.pkl), per-dataset models in models/<dataset>/
 notebooks/
   01_preprocessing.ipynb     cleaning, feature engineering, train/test split, scaling
   02_eda.ipynb                exploratory data analysis
@@ -142,9 +185,17 @@ notebooks/
   04_evaluation.ipynb         held-out test evaluation, metrics, plots
   05_xai.ipynb                 SHAP explainability
   06_multi_dataset_and_bias.ipynb  second dataset, bias audit, bias statement
-App/
-  streamlit_app.py            deployed risk-assessment UI
-  utils.py                     shared risk-tier and preprocessing helpers
+app/
+  api.py                      FastAPI app: serves the web UI and the JSON API
+  risk_models.py              both models: prediction, SHAP drivers, what-if, risk-reduction plans
+  storage.py                  SQLite patients/assessments + triage queue and alerts
+  report.py                   PDF report
+  demo_data.py                demo patients seeded on first run
+  web/                        index.html, app.js, i18n.js (10 languages)
+  streamlit_app.py            backup Streamlit tool
+  utils.py, translations.py   shared risk tiers; Streamlit translations
+tests/                        API tests and translation completeness checks
+run_app.py                    starts the web app
 src/
   preprocessing.py            one loader per raw dataset, all mapped to at_risk = 1
   feature_engineering.py      per-dataset engineered features (clinical thresholds)
@@ -153,4 +204,5 @@ src/
   evaluate.py                 metrics, subgroup bias report, cross-dataset transfer test
   bias_audit.py               runs the full multi-dataset + bias analysis
 reports/multi_dataset/        tables and plots from the bias audit
+reports/figures/              EDA figures
 ```
