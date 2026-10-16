@@ -1,5 +1,13 @@
 // SKAI web app. Every number shown comes from the API (app/api.py), which runs
 // the trained models; nothing here is simulated.
+//
+// Normally the page is served by the API itself (python run_app.py) at "/", so
+// API calls are same-origin. When it is opened from the project folder instead
+// (VS Code Live Server serves it as /app/web/index.html) or as a file, the
+// calls go to the API on its default port 8000.
+const API_BASE = (location.protocol === 'file:' || location.pathname.includes('/app/web/'))
+    ? 'http://127.0.0.1:8000' : '';
+
 const SKAI = (() => {
     const state = {
         role: null, mode: 'clinical', lang: 'en',
@@ -74,12 +82,14 @@ const SKAI = (() => {
     }
 
     async function api(path, body) {
-        const res = await fetch(path, body ? {
+        const res = await fetch(API_BASE + path, body ? {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
         } : undefined);
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            const detail = Array.isArray(err.detail) ? err.detail.map(d => d.msg).join('; ') : err.detail;
+            // FastAPI returns a list (validation), a string, or {code} for app errors
+            const detail = Array.isArray(err.detail) ? err.detail.map(d => d.msg).join('; ')
+                : (err.detail && err.detail.code) || err.detail;
             throw new Error(detail || res.statusText);
         }
         return res.json();
@@ -89,16 +99,64 @@ const SKAI = (() => {
         if (state.charts[id]) state.charts[id].destroy();
         state.charts[id] = new Chart($(id), config);
     }
-    Chart.defaults.color = '#94a3b8';
     Chart.defaults.font.family = '"Plus Jakarta Sans", sans-serif';
-    const grid = { color: 'rgba(51, 65, 85, 0.35)' };
+    const grid = { color: 'rgba(51, 65, 85, 0.35)' };   // updated by applyTheme
+
+    // Things to re-draw when the language or theme changes (patient.js registers too)
+    const rerenderHooks = [];
+
+    // ---------- theme ----------
+    function applyTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        const light = theme === 'light';
+        Chart.defaults.color = light ? '#475569' : '#94a3b8';
+        grid.color = light ? 'rgba(148, 163, 184, 0.3)' : 'rgba(51, 65, 85, 0.35)';
+        document.querySelectorAll('.theme-toggle i').forEach(i => { i.className = `fa-solid ${light ? 'fa-sun' : 'fa-moon'}`; });
+    }
+
+    function toggleTheme() {
+        const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+        try { localStorage.setItem('skai-theme', next); } catch (e) { /* private mode */ }
+        applyTheme(next);
+        rerender();
+    }
+
+    function rerender() {
+        if (state.role && state.role !== 'patient') {
+            renderForm(readInputs());
+            if (state.result) { renderResult(); advisorIntro(); } else clearResult();
+            renderQueue();
+            renderDocs();
+            if (!$('panel-models').classList.contains('hidden')) renderModels();
+        }
+        rerenderHooks.forEach(fn => fn());
+    }
 
     // ---------- navigation ----------
+    function showView(id) {
+        for (const v of ['view-home', 'view-work', 'view-patient']) {
+            $(v).classList.toggle('hidden', v !== id);
+        }
+        $('view-work').classList.toggle('flex', id === 'view-work');
+    }
+
+    // The advisor card is shared: it sits in the clinician results or the patient dashboard
+    function moveAdvisor(toPatient) {
+        (toPatient ? $('pt-advisor-slot') : $('advisor-home')).appendChild($('advisor-card'));
+    }
+
     function enter(role, tab = 'assess') {
         state.role = role;
-        $('view-home').classList.add('hidden');
-        $('view-work').classList.remove('hidden');
-        $('view-work').classList.add('flex');
+        state.result = null;
+        if (role === 'patient') {
+            showView('view-patient');
+            moveAdvisor(true);
+            clearResult();
+            SKAI.patient.open();
+            return;
+        }
+        moveAdvisor(false);
+        showView('view-work');
         const clinician = role === 'clinician';
         $('queue-panel').classList.toggle('hidden', !clinician);
         $('mode-toggle').classList.toggle('hidden', !clinician);
@@ -110,15 +168,16 @@ const SKAI = (() => {
         state.charts['history-chart']?.destroy();
         delete state.charts['history-chart'];
         $('history-empty').classList.remove('hidden');
+        state.patient = null;
+        renderDocs();
         setMode(clinician ? 'clinical' : 'lifestyle');
         if (clinician) refreshQueue();
         showTab(tab);
     }
 
     function home() {
-        $('view-work').classList.add('hidden');
-        $('view-work').classList.remove('flex');
-        $('view-home').classList.remove('hidden');
+        moveAdvisor(false);
+        showView('view-home');
     }
 
     function showTab(tab) {
@@ -364,7 +423,8 @@ const SKAI = (() => {
         const query = $('queue-search').value.trim().toLowerCase();
         const shown = state.queue.filter(q => !query || `${q.name} ${q.id}`.toLowerCase().includes(query));
         if (!shown.length) { $('queue').innerHTML = `<p class="text-xs text-slate-500">${t('no_match')}</p>`; return; }
-        const flagStyle = { high_risk: 'bg-red-500/20 text-red-300', rising: 'bg-orange-500/20 text-orange-300', follow_up_due: 'bg-amber-500/20 text-amber-300' };
+        const flagStyle = { high_risk: 'bg-red-500/20 text-red-300', rising: 'bg-orange-500/20 text-orange-300',
+                            follow_up_due: 'bg-amber-500/20 text-amber-300', needs_verification: 'bg-sky-500/20 text-sky-300' };
         $('queue').innerHTML = shown.map(q => {
             const change = q.change == null ? '' : `<span class="${q.change > 0 ? 'text-red-400' : 'text-emerald-400'} text-[10px] font-bold">${q.change > 0 ? '▲' : '▼'} ${Math.abs(q.change * 100).toFixed(0)}</span>`;
             const when = q.days_since === 0 ? t('today') : t('days_ago', { n: q.days_since });
@@ -383,6 +443,8 @@ const SKAI = (() => {
     async function selectPatient(id) {
         const patient = await api(`/api/patients/${encodeURIComponent(id)}`);
         const latest = patient.assessments[patient.assessments.length - 1];
+        state.patient = patient;
+        renderDocs();
         $('p-name').value = patient.name;
         $('p-id').value = patient.id;
         if (latest.kind !== state.mode) setMode(latest.kind);
@@ -394,7 +456,54 @@ const SKAI = (() => {
         loadHistory(id);
     }
 
+    // ---------- clinical documents (clinician review) ----------
+    const DOC_STYLE = {
+        verified: ['fa-shield-halved', 'text-emerald-400'], approved: ['fa-user-check', 'text-emerald-400'],
+        pending_review: ['fa-hourglass-half', 'text-amber-300'], rejected: ['fa-ban', 'text-red-400'],
+    };
+
+    function docLine(d) {
+        const notes = [...d.reasons.map(r => t(`reason_${r}`)), ...d.warnings.map(w => t(`warn_${w}`))];
+        const vitals = Object.entries(d.vitals).map(([k, v]) => `${t(`v_${k}`)} ${v}`).join(' · ');
+        const [icon, colour] = DOC_STYLE[d.status];
+        return `
+            <div class="flex items-center gap-2 text-sm">
+                <i class="fa-solid ${icon} ${colour}"></i>
+                <span class="font-bold ${colour}">${t(`doc_${d.status}`)}</span>
+                <span class="text-xs text-slate-400 truncate">${esc(d.issuer || d.filename)}${d.document_date ? ' · ' + esc(d.document_date) : ''}</span>
+            </div>
+            ${vitals ? `<div class="text-[11px] text-slate-300 mt-1">${esc(vitals)}</div>` : ''}
+            ${notes.length ? `<div class="text-[11px] text-slate-500 mt-1">${notes.map(esc).join(' ')}</div>` : ''}`;
+    }
+
+    function renderDocs() {
+        const docs = state.patient?.documents || [];
+        $('docs-card').classList.toggle('hidden', !docs.length || state.role !== 'clinician');
+        $('docs-list').innerHTML = docs.map(d => `
+            <li class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                ${docLine(d)}
+                <div class="flex flex-wrap gap-2 mt-2 text-xs">
+                    <a href="${API_BASE}/api/documents/${d.id}/file" target="_blank" rel="noopener" class="px-2 py-1 rounded-lg bg-slate-800 border border-slate-600 hover:border-skai-primary"><i class="fa-solid fa-eye mr-1"></i>${t('doc_view')}</a>
+                    ${d.status === 'pending_review' ? `
+                    <button onclick="SKAI.reviewDocument(${d.id}, true)" class="on-accent px-2 py-1 rounded-lg bg-emerald-600 text-white font-bold"><i class="fa-solid fa-check mr-1"></i>${t('doc_approve')}</button>
+                    <button onclick="SKAI.reviewDocument(${d.id}, false)" class="on-accent px-2 py-1 rounded-lg bg-red-600 text-white font-bold"><i class="fa-solid fa-xmark mr-1"></i>${t('doc_reject')}</button>` : ''}
+                </div>
+            </li>`).join('');
+    }
+
+    async function reviewDocument(id, approve) {
+        try {
+            await api(`/api/documents/${id}/review`, { approve });
+            toast(t('doc_reviewed'), 'success');
+            state.patient = await api(`/api/patients/${encodeURIComponent(state.patient.id)}`);
+            renderDocs();
+            refreshQueue();
+        } catch (e) { toast(`${t('error_generic')} (${e.message})`, 'error'); }
+    }
+
     function newPatient() {
+        state.patient = null;
+        renderDocs();
         $('p-name').value = '';
         $('p-id').value = `P-${Math.floor(1000 + Math.random() * 9000)}`;
         setMode(state.mode);
@@ -416,7 +525,7 @@ const SKAI = (() => {
     }
 
     function downloadPdf() {
-        if (state.assessmentId) window.location.href = `/api/assessments/${state.assessmentId}/report.pdf`;
+        if (state.assessmentId) window.location.href = `${API_BASE}/api/assessments/${state.assessmentId}/report.pdf`;
     }
 
     // ---------- offline advisor ----------
@@ -533,7 +642,7 @@ const SKAI = (() => {
             <div class="glass-card rounded-2xl p-5">
                 <h3 class="font-bold text-white mb-1">${t('bias_title')}</h3>
                 <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-3">
-                    ${groups.map(([g, label]) => `<div><p class="text-xs font-bold text-slate-300 mb-1">${t(label)}</p><div class="h-44"><canvas id="bias-${g}"></canvas></div></div>`).join('')}
+                    ${groups.map(([g, label]) => `<div><p class="text-xs font-bold text-slate-300 mb-1">${t(label)}</p><div class="relative h-44"><canvas id="bias-${g}"></canvas></div></div>`).join('')}
                 </div>
             </div>
             <div class="glass-card rounded-2xl p-5">
@@ -561,15 +670,10 @@ const SKAI = (() => {
         document.querySelectorAll('.lang-select').forEach(s => { s.value = state.lang; });
         document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
         document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+        document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
         try { localStorage.setItem('skai-lang', state.lang); } catch (e) { /* private mode */ }
         // Re-render everything built in JS so it picks up the new language
-        if (state.role) {
-            const values = readInputs();
-            renderForm(values);
-            if (state.result) { renderResult(); advisorIntro(); } else clearResult();
-            renderQueue();
-            if (!$('panel-models').classList.contains('hidden')) renderModels();
-        }
+        rerender();
     }
 
     function init() {
@@ -578,15 +682,37 @@ const SKAI = (() => {
             sel.innerHTML = options;
             sel.addEventListener('change', () => { setLang(sel.value); toast(t('lang_changed'), 'info'); });
         });
+        applyTheme(document.documentElement.dataset.theme || 'dark');
         let saved = 'en';
         try { saved = localStorage.getItem('skai-lang') || 'en'; } catch (e) { /* private mode */ }
         setLang(saved);
         watchPatientId();
+        checkServer();
+    }
+
+    // Without the API nothing works, so say so plainly instead of failing silently
+    async function checkServer() {
+        try {
+            const res = await fetch(`${API_BASE}/api/health`);
+            if (res.ok) return;
+        } catch (e) { /* not running */ }
+        const banner = document.createElement('div');
+        banner.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-red-600 text-white text-sm font-bold px-4 py-3 rounded-xl shadow-2xl max-w-[92vw]';
+        banner.innerHTML = '<i class="fa-solid fa-plug-circle-xmark mr-2"></i>The SKAI server is not running. In a terminal, run <code class="bg-red-800 px-1 rounded">python run_app.py</code> and then refresh this page.';
+        document.body.appendChild(banner);
     }
 
     document.addEventListener('DOMContentLoaded', init);
 
-    return { enter, home, showTab, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
-             filterQueue: renderQueue,
-             showModels: () => enter('patient', 'models') };
+    // Shared helpers for patient.js
+    const core = {
+        state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine,
+        onRerender: fn => rerenderHooks.push(fn),
+        // Point the shared advisor at a patient's result
+        setResult(result) { state.result = result; state.inputs = result ? result.inputs : null; if (result) advisorIntro(); else clearResult(); },
+    };
+
+    return { core, enter, home, showTab, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
+             toggleTheme, reviewDocument, filterQueue: renderQueue,
+             showModels: () => enter('viewer', 'models') };
 })();

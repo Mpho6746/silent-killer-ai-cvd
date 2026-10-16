@@ -1,0 +1,107 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+/SKAIPayload (\173\042issuer\042\072 \042skai\055demo\055clinic\042\054 \042document\137id\042\072 \042jane\137smith\137verified\042\054 \042issued\042\072 \0422026\05510\05502\042\054 \042patient\042\072 \173\042name\042\072 \042Jane Smith\042\054 \042dob\042\072 \0421985\05507\05502\042\175\054 \042vitals\042\072 \173\042sbp\042\072 118\054 \042dbp\042\072 76\054 \042height\137cm\042\072 165\054 \042weight\137kg\042\072 61\175\175)
+/SKAISignature (shubhU8E4REtGk\057G56\0573nKR9oFsKNC3lRosGH3gkb9nSG0DraVE1hR3\057LohUEQMYaRvYWIU6HEVvNyVJMSO1DA\075\075)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+/Outlines 10 0 R
+>>
+endobj
+4 0 obj
+<<
+/Contents 5 0 R
+/MediaBox [ 0 0 595.2756 841.8898 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+>>
+endobj
+5 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 807
+>>
+stream
+GatU19iKe#&A@sBlnL1-+j$$\EJ%.]Bfj4fB6rNG@`8rP#M>akr]MbZ%M"]\ZlMj\am\WO\&q0L5]O$r3@b,*'0&$c^c3T\?kJ5<q$s$\i$i%aVW:-[Xr/XX`DSIM6^W%9P6\&%etO!fU*'[VHU5rj*9.XY9P_S1$mrI@:;4SFg:59^E+[624r(N3ZNE`>+?>,>-6LK;j4IrlMFJ'FV4eG;m4.H2:!W.Mft'c`W1,oOCn(8I9VG2(a21)Bc^md.3LJD-\:oLZF,""JP97<oMSp\K]rUN'-J!h^gMG@4("u&Wa)IGIkc(q,Z%jD>raWOGe/>4JE,Q])3!Q6i0r8VWq05f:g&E=?VKF4I##;_!1:ggbV21)Lqe]EAl]DI+e33dF&1Z\,7mJ9?<@%&qA>'@Da3'1b(a9P)&VVD%@gn?Jq&sMLZ)m!!EATSP:4a7q]ZC\J[a0s'bqphW^uUXj`a[L(gmIfG(im*&ScklNp1[CU)*BgSoiXa>XC?-tUa22d7D:oMK$[`OiGR)X[&u%Jm-\7,eOfi)+6JF4p,na;pIqql(o`:G*UCSpHnk=VXLLt#<nY#L*TuTLH:o`Z;SRt[I"Pbbk91rlVP3-;,X.V!U,^%sKps^ri<'"[)mXj,8\Zh7[Y*cTTGt*!J2j4g&CMMRIZmZW#iM]f6o5$ceH;Kb!k@Lr[TQ(lS-uUW/8nt1kfmE%qTFdf&PA>FH.32(f7^oN+jOnA?!7pqd+Z,f);MuK(P0O@[8d^Cm`H_m;E3/#(N*[9[sQ"n^XL&3Ga>aCQkr=72E,o*O?r@CT*W0'~>
+endstream
+endobj
+6 0 obj
+<<
+/F1 7 0 R
+/F2 8 0 R
+/F3 9 0 R
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+9 0 obj
+<<
+/BaseFont /Helvetica-Oblique
+/Encoding /WinAnsiEncoding
+/Name /F3
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+10 0 obj
+<<
+>>
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000015 00000 n 
+0000000613 00000 n 
+0000000672 00000 n 
+0000000738 00000 n 
+0000000937 00000 n 
+0000001835 00000 n 
+0000001886 00000 n 
+0000001993 00000 n 
+0000002105 00000 n 
+0000002220 00000 n 
+trailer
+<<
+/Size 11
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+2242
+%%EOF

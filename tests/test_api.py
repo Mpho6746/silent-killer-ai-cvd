@@ -103,4 +103,12 @@ def test_model_info(client):
 
 def test_web_app_served(client):
     assert "SKAI" in client.get("/").text
-    assert client.get("/static/app.js").status_code == 200
+    assert client.get("/app.js").status_code == 200
+
+
+def test_live_server_origin_allowed(client):
+    """The page can also be opened from VS Code Live Server (:5500) and call the API."""
+    r = client.get("/api/health", headers={"Origin": "http://127.0.0.1:5500"})
+    assert r.headers.get("access-control-allow-origin") == "http://127.0.0.1:5500"
+    r = client.get("/api/health", headers={"Origin": "https://example.com"})
+    assert "access-control-allow-origin" not in r.headers

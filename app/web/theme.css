@@ -1,0 +1,80 @@
+/* SKAI styles + light/dark theme.
+   The markup is written with Tailwind's dark slate palette. Light mode remaps
+   those colours here, so components don't need two sets of classes.
+   Elements on a coloured background (accent buttons, banners) carry the class
+   "on-accent" so their white text is kept in both themes. */
+
+:root { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
+
+body { background-color: #020617; color: #f8fafc; transition: background-color .2s, color .2s; }
+.glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+.glass-card { background: linear-gradient(145deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4); }
+.fade-in { animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+.field-label { display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; }
+.field { width: 100%; background: #0f172a; color: #fff; font-size: 14px; border-radius: 10px; padding: 8px 12px; border: 1px solid #334155; }
+.field:focus { outline: none; border-color: #0ea5e9; }
+.field:invalid { border-color: #ef4444; }
+.lang-select option, .field option { background-color: #0f172a; color: #f8fafc; }
+input[type=range] { width: 100%; accent-color: #0ea5e9; }
+.chip { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.tab-active { background: #0ea5e9; color: #fff !important; }
+.listening { background: #ef4444 !important; color: #fff !important; animation: pulseMic 1.5s infinite; }
+@keyframes pulseMic { 50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.6); } }
+.tier-low { color: #10b981; } .tier-moderate { color: #eab308; } .tier-high { color: #f97316; } .tier-critical { color: #ef4444; }
+.bg-tier-low { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.5); }
+.bg-tier-moderate { background: rgba(234,179,8,.15); border-color: rgba(234,179,8,.5); }
+.bg-tier-high { background: rgba(249,115,22,.15); border-color: rgba(249,115,22,.5); }
+.bg-tier-critical { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.5); }
+.title-gradient { background-image: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* Patient app */
+.avatar { width: 88px; height: 88px; border-radius: 999px; object-fit: cover; }
+.mood-btn { font-size: 26px; line-height: 1; padding: 6px; border-radius: 12px; border: 2px solid transparent; transition: transform .15s; }
+.mood-btn:hover { transform: scale(1.12); }
+.mood-btn.selected { border-color: #14b8a6; background: rgba(20,184,166,.15); }
+.dose-btn.taken { background: rgba(16,185,129,.18); border-color: #10b981; }
+.status-good { color: #10b981; } .status-watch { color: #eab308; } .status-high { color: #ef4444; }
+.dropzone { border: 2px dashed #334155; border-radius: 16px; transition: border-color .15s, background .15s; }
+.dropzone.drag { border-color: #14b8a6; background: rgba(20,184,166,.08); }
+.advice-pop { animation: slideUp .35s cubic-bezier(.2,.8,.2,1); }
+@keyframes slideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+
+/* ---------------- light theme ---------------- */
+html[data-theme="light"] body { background-color: #f1f5f9; color: #0f172a; }
+html[data-theme="light"] .glass { background: rgba(255, 255, 255, 0.8); border-color: rgba(15, 23, 42, 0.08); }
+html[data-theme="light"] .glass-card { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06); }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+html[data-theme="light"] .field { background: #ffffff; color: #0f172a; border-color: #cbd5e1; }
+html[data-theme="light"] .field-label { color: #475569; }
+html[data-theme="light"] .lang-select option, html[data-theme="light"] .field option { background-color: #ffffff; color: #0f172a; }
+html[data-theme="light"] .title-gradient { background-image: linear-gradient(to right, #0f172a, #0369a1); }
+html[data-theme="light"] .dropzone { border-color: #cbd5e1; }
+
+/* surfaces and borders written with dark slate classes */
+html[data-theme="light"] [class*="bg-slate-9"], html[data-theme="light"] [class*="bg-slate-8"] { background-color: #f1f5f9 !important; }
+html[data-theme="light"] [class*="bg-slate-7"] { background-color: #e2e8f0 !important; }
+html[data-theme="light"] [class*="border-slate-"] { border-color: #e2e8f0 !important; }
+html[data-theme="light"] .hover\:bg-slate-800:hover, html[data-theme="light"] .hover\:bg-slate-700:hover { background-color: #e2e8f0 !important; }
+
+/* text */
+html[data-theme="light"] .text-white:not(.on-accent):not(.on-accent *) { color: #0f172a !important; }
+html[data-theme="light"] .text-slate-200, html[data-theme="light"] .text-slate-300 { color: #334155 !important; }
+html[data-theme="light"] .text-slate-400 { color: #475569 !important; }
+html[data-theme="light"] .text-slate-500, html[data-theme="light"] .text-slate-600 { color: #64748b !important; }
+html[data-theme="light"] .hover\:text-white:hover:not(.on-accent) { color: #0f172a !important; }
+
+/* pale accent text that is only readable on dark backgrounds */
+html[data-theme="light"] .text-red-300, html[data-theme="light"] .text-red-400 { color: #b91c1c !important; }
+html[data-theme="light"] .text-orange-300 { color: #c2410c !important; }
+html[data-theme="light"] .text-amber-300 { color: #b45309 !important; }
+html[data-theme="light"] .text-emerald-400 { color: #047857 !important; }
+html[data-theme="light"] .text-teal-300 { color: #0f766e !important; }
+html[data-theme="light"] .bg-teal-900\/30 { background-color: #f0fdfa !important; }
+html[data-theme="light"] .border-teal-800\/50 { border-color: #99f6e4 !important; }
+html[data-theme="light"] .text-sky-300, html[data-theme="light"] .text-sky-400 { color: #0369a1 !important; }
+html[data-theme="light"] .text-purple-400 { color: #7e22ce !important; }
+html[data-theme="light"] .text-amber-300 i, html[data-theme="light"] i.text-amber-300 { color: #d97706 !important; }

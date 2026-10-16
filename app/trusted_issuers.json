@@ -1,0 +1,9 @@
+[
+  {
+    "id": "skai-demo-clinic",
+    "name": "SKAI Partner Demo Clinic",
+    "type": "clinic",
+    "public_key": "tfh2AKx0jA36tbu1kvk/qY6Ji6Lyp4+RV0tD2NfwbCM=",
+    "note": "Fictional issuer for demonstration only."
+  }
+]

@@ -12,3 +12,6 @@ uvicorn==0.54.0
 reportlab==5.0.1
 httpx==0.28.1
 pytest==9.1.1
+pypdf==6.21.0
+python-multipart==0.0.32
+cryptography==46.0.3

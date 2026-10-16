@@ -110,10 +110,31 @@ A web app (FastAPI backend + HTML/JS front end) built on the trained models. Eve
 - **What-if sliders** (BP, cholesterol, max heart rate, ST depression) that re-run the model live.
 - **Risk-reduction plan**: the model re-scored with each guideline target (BP 120, cholesterol 200, fasting sugar < 120). It only lists changes that actually lower the risk.
 - **Risk over time** chart and a **downloadable PDF report** for every saved assessment.
+- **Document review**: patients whose uploaded results are not digitally signed are flagged *Verify document*. The clinician opens the original PDF and approves or rejects it.
 
-**Patient self-check**: uses the South African Heart Disease model and only things a person can know without hospital tests (age, blood pressure, smoking, family history, height/weight, LDL if known).
-- **10-year projection**: the risk if nothing changes vs. with each change (stop smoking, BP 120, LDL 3.0, BMI 25).
-- Unknown values fall back to the study average, and inputs outside the study's range are capped. Both are shown to the user.
+**Patient health tracker (SKAI Health)**: a personal profile with photo and a welcoming dashboard.
+- **Trusted vitals only** (see below): patients upload the PDF from their clinic, pharmacy clinic or lab. They never type blood pressure, cholesterol or weight.
+- **Heart-risk check** with the South African Heart Disease model, a **10-year projection** (risk if nothing changes vs. with each change) and "explore" sliders that never change the record.
+- **Personal health tips** based on the patient's own vitals, risk, medication adherence and check-ins, shown as pop-ups. Urgent symptoms open an emergency screen (10177 / 112).
+- **Medication planner**: daily doses to tick off and 7-day adherence.
+- **Daily check-in**: mood, active minutes, water and symptoms, with a streak and a weekly activity chart against the WHO 150-minute goal.
+- **Progress chart** (blood pressure, weight, risk over time), **next check-up date** based on risk tier, document history, heart-attack warning signs and PDF reports.
+
+### Trusted vitals from clinical documents
+
+In a medical app the numbers behind a risk score must come from a measured source, so patients cannot type their own vitals. The self-check endpoint rejects any vitals sent to it; it reads them from the patient's latest accepted document ([app/documents.py](app/documents.py)):
+
+| Status | When | Used for the risk score? |
+|---|---|---|
+| **Verified** | The PDF carries a data block signed (Ed25519) by an issuer in [app/trusted_issuers.json](app/trusted_issuers.json), and the signature matches. Values come from the signed data, so editing the visible PDF changes nothing. | Yes |
+| **Clinician-approved** | An unsigned document a clinician has checked and approved. | Yes |
+| **Awaiting review** | No signature, but the values could be read from the text. The patient gets a provisional result and is flagged in the clinician's queue. | Provisionally |
+| **Rejected** | Invalid signature (tampered), unknown issuer, future date, a signed document for someone else, or nothing readable. Kept for the audit trail. | No |
+
+Only smoking and family history are self-declared, because no clinic document records them. In production the signed block would be a standard PDF digital signature (PAdES) or a direct lab/clinic integration (HL7 FHIR); the trust model stays the same. Photos and scans need OCR, which is a next step. The demo issuer is fictional. `python scripts/make_demo_documents.py` creates its key and the sample PDFs in [sample_documents/](sample_documents/) (valid, tampered, unsigned, and another person's).
+
+**For everyone**
+- **Light and dark theme** (follows the device setting, switchable anywhere).
 
 **For everyone**
 - **SKAI advisor**: an offline assistant that explains *why* the risk is what it is, *how to lower it* and *when to see a doctor*, using the real model output.
@@ -128,6 +149,11 @@ A web app (FastAPI backend + HTML/JS front end) built on the trained models. Eve
 | `GET /api/patients/{id}` | one patient's full history |
 | `GET /api/assessments/{id}/report.pdf` | PDF summary |
 | `GET /api/model-info` | model metrics + bias audit tables |
+| `POST /api/patients/{id}/documents` | upload a clinical PDF: verified / pending review / rejected |
+| `POST /api/patients/{id}/self-check` | patient risk check using document vitals only |
+| `GET /api/patients/{id}/dashboard` | everything the patient home screen needs, including advice |
+| `POST /api/documents/{id}/review` | clinician approves or rejects a pending document |
+| medications, doses, check-ins, profile, photo | see [app/patient_api.py](app/patient_api.py) |
 
 ## How to Run
 
@@ -155,7 +181,7 @@ Or open them in Jupyter/VS Code and run all cells in order.
 python run_app.py
 ```
 
-This opens http://127.0.0.1:8000. Interactive API docs are at `/docs`. On first run the app creates a local patient database (`data/app/skai.db`, not committed) and fills it with clearly-labelled `DEMO-` patients. Delete that file to start fresh.
+This opens http://127.0.0.1:8000. Interactive API docs are at `/docs`. On first run the app creates a local patient database (`data/app/skai.db`, not committed) and fills it with clearly-labelled `DEMO-` patients. Delete that file to start fresh. To try the patient side, open *Patient self-check* and use `DEMO-101`, or create a profile named John Doe and upload `sample_documents/john_doe_verified.pdf`.
 
 **Run the tests:**
 
@@ -190,11 +216,17 @@ app/
   risk_models.py              both models: prediction, SHAP drivers, what-if, risk-reduction plans
   storage.py                  SQLite patients/assessments + triage queue and alerts
   report.py                   PDF report
+  patient_api.py              patient health-tracker endpoints
+  documents.py                reads and verifies uploaded clinical PDFs
+  trusted_issuers.json        public keys of issuers whose signatures are trusted
+  advice.py                   personal health advice rules
   demo_data.py                demo patients seeded on first run
-  web/                        index.html, app.js, i18n.js (10 languages)
+  web/                        index.html, theme.css, app.js (clinician), patient.js (health tracker), i18n.js (11 languages)
   streamlit_app.py            backup Streamlit tool
   utils.py, translations.py   shared risk tiers; Streamlit translations
-tests/                        API tests and translation completeness checks
+tests/                        API, document-verification and translation tests
+scripts/make_demo_documents.py  creates the fictional demo issuer and sample PDFs
+sample_documents/             sample clinical PDFs for the demo and tests
 run_app.py                    starts the web app
 src/
   preprocessing.py            one loader per raw dataset, all mapped to at_risk = 1

@@ -21,30 +21,16 @@
             }
         }
     </script>
-    <style>
-        body { background-color: #020617; color: #f8fafc; }
-        .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-card { background: linear-gradient(145deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4); }
-        .fade-in { animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        .field-label { display: block; font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; }
-        .field { width: 100%; background: #0f172a; color: #fff; font-size: 14px; border-radius: 10px; padding: 8px 12px; border: 1px solid #334155; }
-        .field:focus { outline: none; border-color: #0ea5e9; }
-        .field:invalid { border-color: #ef4444; }
-        .lang-select option, .field option { background-color: #0f172a; color: #f8fafc; }
-        input[type=range] { width: 100%; accent-color: #0ea5e9; }
-        .chip { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-        .tab-active { background: #0ea5e9; color: #fff; }
-        .listening { background: #ef4444 !important; color: #fff !important; animation: pulseMic 1.5s infinite; }
-        @keyframes pulseMic { 50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.6); } }
-        .tier-low { color: #10b981; } .tier-moderate { color: #eab308; } .tier-high { color: #f97316; } .tier-critical { color: #ef4444; }
-        .bg-tier-low { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.5); }
-        .bg-tier-moderate { background: rgba(234,179,8,.15); border-color: rgba(234,179,8,.5); }
-        .bg-tier-high { background: rgba(249,115,22,.15); border-color: rgba(249,115,22,.5); }
-        .bg-tier-critical { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.5); }
-    </style>
+    <link href="theme.css" rel="stylesheet">
+    <script>
+        // Apply the saved (or system) theme before the page paints
+        (function () {
+            let theme = null;
+            try { theme = localStorage.getItem('skai-theme'); } catch (e) { /* private mode */ }
+            if (!theme) theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            document.documentElement.dataset.theme = theme;
+        })();
+    </script>
 </head>
 <body class="min-h-screen font-sans">
 
@@ -55,16 +41,19 @@
     <div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-skai-primary rounded-full filter blur-[150px] opacity-10"></div>
     <div class="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-skai-secondary rounded-full filter blur-[150px] opacity-10"></div>
 
-    <div class="absolute top-5 right-5 flex items-center gap-2 bg-slate-800/60 rounded-full pl-4 pr-2 py-1 border border-slate-700">
+    <div class="absolute top-5 right-5 flex items-center gap-2">
+    <button onclick="SKAI.toggleTheme()" class="theme-toggle text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" aria-label="Theme"><i class="fa-solid fa-moon"></i></button>
+    <div class="flex items-center gap-2 bg-slate-800/60 rounded-full pl-4 pr-2 py-1 border border-slate-700">
         <i class="fa-solid fa-globe text-skai-primary text-xs"></i>
         <select aria-label="Language" class="lang-select bg-transparent text-white text-xs font-bold py-1.5 focus:outline-none cursor-pointer"></select>
+    </div>
     </div>
 
     <div class="glass-card rounded-3xl p-8 md:p-12 max-w-2xl w-full text-center z-10 fade-in">
         <div class="w-20 h-20 mx-auto mb-5 bg-slate-900 rounded-full border-2 border-skai-primary flex items-center justify-center">
             <i class="fa-solid fa-heart-pulse text-4xl text-skai-primary"></i>
         </div>
-        <h1 class="text-5xl font-extrabold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">SKAI</h1>
+        <h1 class="text-5xl font-extrabold tracking-tighter title-gradient">SKAI</h1>
         <p class="text-skai-primary text-xs font-semibold tracking-[0.3em] uppercase mt-1" data-i18n="app_subtitle">Silent Killer AI</p>
         <p class="text-slate-300 text-sm mt-4 mb-8" data-i18n="tagline">Early cardiovascular risk screening with explainable AI</p>
 
@@ -94,7 +83,7 @@
     <aside id="queue-panel" class="w-full md:w-80 glass border-r border-slate-800 flex flex-col md:h-screen md:sticky md:top-0 shrink-0">
         <div class="p-5 border-b border-slate-800 flex justify-between items-center">
             <h2 class="text-xl font-extrabold flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-skai-primary"></i> SKAI</h2>
-            <button onclick="SKAI.newPatient()" class="text-xs bg-skai-primary hover:bg-sky-500 text-white font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-plus mr-1"></i><span data-i18n="new_patient">New patient</span></button>
+            <button onclick="SKAI.newPatient()" class="on-accent text-xs bg-skai-primary hover:bg-sky-500 text-white font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-plus mr-1"></i><span data-i18n="new_patient">New patient</span></button>
         </div>
         <div class="px-4 pt-4 relative">
             <i class="fa-solid fa-search absolute left-7 top-[26px] text-slate-500 text-xs"></i>
@@ -121,6 +110,7 @@
             </div>
             <div class="ml-auto flex items-center gap-2">
                 <select aria-label="Language" class="lang-select bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5 focus:outline-none cursor-pointer"></select>
+                <button onclick="SKAI.toggleTheme()" class="theme-toggle text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" aria-label="Theme"><i class="fa-solid fa-moon"></i></button>
                 <button onclick="SKAI.home()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" title="Home"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
         </header>
@@ -140,10 +130,15 @@
                     </label>
                 </div>
 
+                <div id="docs-card" class="hidden glass-card rounded-2xl p-5">
+                    <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-file-shield text-skai-primary mr-2"></i><span data-i18n="docs_title">Clinical documents</span></h3>
+                    <ul id="docs-list" class="space-y-2"></ul>
+                </div>
+
                 <form id="assess-form" class="glass-card rounded-2xl p-5" onsubmit="event.preventDefault(); SKAI.assess();">
                     <div id="form-fields"></div>
                     <p id="lifestyle-optional" class="hidden text-[11px] text-slate-500 mt-3" data-i18n="optional_hint">Optional: leave blank if unknown, the study average is used.</p>
-                    <button id="assess-btn" type="submit" class="mt-5 w-full bg-gradient-to-r from-skai-primary to-blue-600 hover:from-sky-500 hover:to-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">
+                    <button id="assess-btn" type="submit" class="on-accent mt-5 w-full bg-gradient-to-r from-skai-primary to-blue-600 hover:from-sky-500 hover:to-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">
                         <i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n="assess">Assess risk</span>
                     </button>
                 </form>
@@ -165,7 +160,7 @@
                         </div>
                         <div class="md:col-span-2">
                             <h3 class="text-sm font-bold text-white mb-2" data-i18n="drivers_title">What is driving this result</h3>
-                            <div class="h-52"><canvas id="drivers-chart"></canvas></div>
+                            <div class="relative h-52"><canvas id="drivers-chart"></canvas></div>
                         </div>
                         <p id="result-notes" class="md:col-span-3 text-[11px] text-slate-400"></p>
                     </div>
@@ -182,7 +177,7 @@
                         </div>
                         <div class="glass-card rounded-2xl p-5">
                             <h3 id="plan-title" class="text-sm font-bold text-white mb-3" data-i18n="plan_title">Risk-reduction plan</h3>
-                            <div id="projection" class="hidden h-44 mb-3"><canvas id="projection-chart"></canvas></div>
+                            <div id="projection" class="hidden relative h-44 mb-3"><canvas id="projection-chart"></canvas></div>
                             <ul id="plan" class="space-y-2 text-sm"></ul>
                         </div>
                     </div>
@@ -190,10 +185,10 @@
                     <div class="grid md:grid-cols-2 gap-5">
                         <div class="glass-card rounded-2xl p-5">
                             <h3 class="text-sm font-bold text-white mb-3" data-i18n="history_title">Risk over time</h3>
-                            <div class="h-44"><canvas id="history-chart"></canvas></div>
+                            <div class="relative h-44"><canvas id="history-chart"></canvas></div>
                             <p id="history-empty" class="text-xs text-slate-500" data-i18n="history_empty">Save assessments to a patient record to track them over time.</p>
                         </div>
-                        <div class="glass-card rounded-2xl p-5 flex flex-col">
+                        <div id="advisor-home" class="flex"><div id="advisor-card" class="glass-card rounded-2xl p-5 flex flex-col w-full">
                             <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
                                 <span class="w-2 h-2 bg-skai-secondary rounded-full animate-pulse"></span><span data-i18n="advisor_title">SKAI advisor</span>
                             </h3>
@@ -204,7 +199,7 @@
                                 <input id="chat-input" class="field text-xs" data-i18n-placeholder="chat_placeholder" placeholder="Ask about the result...">
                                 <button class="bg-skai-secondary text-slate-900 rounded-lg px-3" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
                             </form>
-                        </div>
+                        </div></div>
                     </div>
 
                     <div class="flex flex-wrap items-center gap-3">
@@ -223,7 +218,141 @@
     </main>
 </section>
 
-<script src="/static/i18n.js"></script>
-<script src="/static/app.js"></script>
+<!-- ===================== PATIENT HEALTH TRACKER ===================== -->
+<section id="view-patient" class="hidden min-h-screen">
+    <header class="glass border-b border-slate-800 px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+        <h2 class="text-lg font-extrabold flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-skai-secondary"></i> SKAI <span class="text-xs font-semibold text-skai-secondary" data-i18n="pt_brand">Health</span></h2>
+        <div class="ml-auto flex items-center gap-2">
+            <button id="pt-logout" onclick="SKAI.patient.logout()" class="hidden text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800"><i class="fa-solid fa-user-xmark sm:mr-1"></i><span class="hidden sm:inline" data-i18n="pt_switch">Switch profile</span></button>
+            <select aria-label="Language" class="lang-select bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5 focus:outline-none cursor-pointer"></select>
+            <button onclick="SKAI.toggleTheme()" class="theme-toggle text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" aria-label="Theme"><i class="fa-solid fa-moon"></i></button>
+            <button onclick="SKAI.home()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" title="Home"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
+    </header>
+
+    <!-- sign in / create profile -->
+    <div id="pt-signin" class="max-w-xl mx-auto px-4 py-10 fade-in">
+        <div class="glass-card rounded-3xl p-8 text-center">
+            <div class="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-skai-secondary to-emerald-500 flex items-center justify-center mb-4 shadow-lg">
+                <i class="fa-solid fa-hand-holding-heart text-3xl text-white on-accent"></i>
+            </div>
+            <h1 class="text-2xl font-extrabold text-white" data-i18n="pt_welcome_title">Welcome to SKAI Health</h1>
+            <p class="text-sm text-slate-300 mt-2" data-i18n="pt_welcome_text">Your personal heart-health companion. Track your verified results, medication and daily habits in one place.</p>
+
+            <form class="mt-6 flex gap-2" onsubmit="event.preventDefault(); SKAI.patient.signIn();">
+                <input id="pt-login-id" class="field" maxlength="40" data-i18n-placeholder="pt_enter_id" placeholder="Your patient ID" required>
+                <button class="on-accent bg-skai-secondary hover:bg-teal-500 text-white font-bold px-4 rounded-xl whitespace-nowrap" data-i18n="pt_open">Open</button>
+            </form>
+            <p class="text-[11px] text-slate-500 mt-2" data-i18n="pt_demo_hint">Demo: try DEMO-101 (John) or DEMO-102 (Nomvula).</p>
+
+            <div class="flex items-center gap-3 my-6 text-xs text-slate-500"><div class="flex-1 border-t border-slate-700"></div><span data-i18n="pt_or">or</span><div class="flex-1 border-t border-slate-700"></div></div>
+
+            <form id="pt-create" class="text-left grid grid-cols-2 gap-3" onsubmit="event.preventDefault(); SKAI.patient.create();">
+                <h3 class="col-span-2 text-sm font-bold text-white" data-i18n="pt_create_title">Create my profile</h3>
+                <div class="col-span-2"><label class="field-label" for="pt-new-name" data-i18n="patient_name">Full name</label><input id="pt-new-name" class="field" maxlength="80" required></div>
+                <div><label class="field-label" for="pt-new-id" data-i18n="patient_id">Patient ID</label><input id="pt-new-id" class="field" maxlength="40" pattern="[A-Za-z0-9_\-]+" required></div>
+                <div><label class="field-label" for="pt-new-dob" data-i18n="pt_dob">Date of birth</label><input id="pt-new-dob" type="date" class="field" required></div>
+                <div class="col-span-2"><label class="field-label" for="pt-new-sex" data-i18n="f_sex">Sex</label>
+                    <select id="pt-new-sex" class="field"><option value="F" data-i18n="female">Female</option><option value="M" data-i18n="male">Male</option></select></div>
+                <button class="on-accent col-span-2 bg-gradient-to-r from-skai-secondary to-emerald-500 text-white font-bold py-3 rounded-xl" data-i18n="pt_create">Create profile</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- dashboard -->
+    <div id="pt-dash" class="hidden max-w-7xl mx-auto p-4 md:p-6 space-y-5 fade-in">
+        <!-- hero -->
+        <div class="glass-card rounded-3xl p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-5 relative overflow-hidden">
+            <div class="absolute -right-16 -top-16 w-56 h-56 bg-skai-secondary rounded-full blur-[90px] opacity-20"></div>
+            <div class="relative shrink-0">
+                <div id="pt-avatar"></div>
+                <label class="on-accent absolute bottom-0 right-0 w-8 h-8 rounded-full bg-skai-secondary text-white flex items-center justify-center cursor-pointer shadow-lg hover:scale-110 transition" data-i18n-title="pt_change_photo" title="Change photo">
+                    <i class="fa-solid fa-camera text-xs"></i>
+                    <input id="pt-photo-input" type="file" accept="image/*" class="hidden" onchange="SKAI.patient.photo(this.files[0])">
+                </label>
+            </div>
+            <div class="relative flex-1 min-w-0">
+                <p id="pt-greeting" class="text-2xl md:text-3xl font-extrabold text-white"></p>
+                <p id="pt-subtitle" class="text-sm text-slate-400 mt-1"></p>
+                <div id="pt-badges" class="flex flex-wrap gap-2 mt-3"></div>
+            </div>
+            <div class="relative flex flex-wrap gap-2">
+                <button onclick="SKAI.patient.openUpload()" class="on-accent bg-skai-secondary hover:bg-teal-500 text-white text-sm font-bold px-4 py-2.5 rounded-xl"><i class="fa-solid fa-file-arrow-up mr-2"></i><span data-i18n="pt_upload_btn">Upload results</span></button>
+                <button onclick="SKAI.patient.openSelfCheck()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm font-bold px-4 py-2.5 rounded-xl"><i class="fa-solid fa-heart-circle-check text-skai-secondary mr-2"></i><span data-i18n="pt_check_btn">Update my check</span></button>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-5">
+            <!-- risk -->
+            <div class="lg:col-span-2 min-w-0 glass-card rounded-2xl p-5">
+                <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-heart-pulse text-red-400 mr-2"></i><span data-i18n="pt_risk_title">My heart risk</span></h3>
+                <div id="pt-risk"></div>
+            </div>
+            <!-- tips -->
+            <div class="glass-card rounded-2xl p-5">
+                <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-lightbulb text-amber-300 mr-2"></i><span data-i18n="pt_tips_title">Tips for you</span></h3>
+                <ul id="pt-tips" class="space-y-2"></ul>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-5">
+            <div class="glass-card rounded-2xl p-5">
+                <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-stethoscope text-skai-primary mr-2"></i><span data-i18n="pt_vitals_title">My verified vitals</span></h3>
+                <div id="pt-vitals"></div>
+            </div>
+            <div class="glass-card rounded-2xl p-5">
+                <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-chart-line text-skai-primary mr-2"></i><span data-i18n="pt_trend_title">My progress</span></h3>
+                <div class="relative h-56"><canvas id="pt-trend-chart"></canvas></div>
+                <p id="pt-trend-empty" class="hidden text-xs text-slate-500" data-i18n="pt_trend_empty">Upload results over time to see your progress.</p>
+            </div>
+            <div class="glass-card rounded-2xl p-5">
+                <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-calendar-check text-skai-secondary mr-2"></i><span data-i18n="pt_checkin_title">Daily check-in</span></h3>
+                <div id="pt-checkin"></div>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-5">
+            <div class="lg:col-span-2 glass-card rounded-2xl p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-pills text-purple-400 mr-2"></i><span data-i18n="pt_meds_title">Medication planner</span></h3>
+                    <button onclick="SKAI.patient.openAddMed()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-plus mr-1"></i><span data-i18n="pt_add_med">Add medication</span></button>
+                </div>
+                <div id="pt-meds"></div>
+            </div>
+            <div class="glass-card rounded-2xl p-5">
+                <h3 class="text-sm font-bold text-white mb-1"><i class="fa-solid fa-person-walking text-emerald-400 mr-2"></i><span data-i18n="pt_activity_title">Active minutes</span></h3>
+                <p id="pt-activity-total" class="text-xs text-slate-400 mb-2"></p>
+                <div class="relative h-44"><canvas id="pt-activity-chart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-5">
+            <div id="pt-advisor-slot" class="lg:col-span-2 flex"></div>
+            <div class="glass-card rounded-2xl p-5 border border-red-500/30">
+                <h3 class="text-sm font-bold text-white mb-2"><i class="fa-solid fa-truck-medical text-red-400 mr-2"></i><span data-i18n="pt_emergency_title">Heart attack warning signs</span></h3>
+                <p class="text-xs text-slate-300" data-i18n="pt_emergency_text">Chest pain or pressure, pain spreading to the arm, jaw or back, shortness of breath, cold sweat, nausea or light-headedness.</p>
+                <p class="text-sm font-bold text-red-400 mt-3"><i class="fa-solid fa-phone mr-1"></i><span data-i18n="pt_emergency_call">Call 10177 or 112 immediately.</span></p>
+            </div>
+        </div>
+
+        <div id="pt-docs" class="glass-card rounded-2xl p-5">
+            <h3 class="text-sm font-bold text-white mb-3"><i class="fa-solid fa-folder-open text-skai-primary mr-2"></i><span data-i18n="pt_docs_title">My documents</span></h3>
+            <ul id="pt-docs-list" class="space-y-2"></ul>
+        </div>
+        <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-info mr-1"></i><span data-i18n="disclaimer">Screening aid, not a diagnosis. Always discuss results with a clinician.</span></p>
+    </div>
+</section>
+
+<!-- shared modal (content filled by patient.js) -->
+<div id="modal" class="hidden fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="if (event.target === this) SKAI.patient.closeModal()">
+    <div id="modal-body" class="glass-card rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 fade-in"></div>
+</div>
+
+<!-- health advice pop-up -->
+<div id="advice-pop" class="hidden fixed bottom-4 right-4 z-[80] max-w-sm w-[calc(100%-2rem)]"></div>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+<script src="patient.js"></script>
 </body>
 </html>

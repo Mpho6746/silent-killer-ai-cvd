@@ -11,6 +11,8 @@ Endpoints
     GET  /api/patients/{id}          one patient with full assessment history
     GET  /api/assessments/{id}/report.pdf   downloadable PDF summary
     GET  /api/model-info             model performance + bias audit results
+    Patient health-tracker endpoints (documents, self-check, medications,
+    check-ins): see app/patient_api.py
 """
 import json
 import os
@@ -21,11 +23,13 @@ from typing import Literal, Optional
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
 from app import demo_data
+from app.patient_api import router as patient_router
 from app.report import build_pdf
 from app.risk_models import ClinicalModel, LifestyleModel
 from app.storage import DEFAULT_DB, Store
@@ -108,12 +112,15 @@ async def lifespan(app):
 
 
 app = FastAPI(title="SKAI - Silent Killer AI", version="2.0", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
-
-@app.get("/", include_in_schema=False)
-def index():
-    return FileResponse(WEB_DIR / "index.html")
+# Lets the page also be opened from another local server (e.g. VS Code Live
+# Server on :5500) while this API answers on :8000. Local origins only.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 @app.get("/api/health")
@@ -174,6 +181,14 @@ def report(assessment_id: int):
 @app.get("/api/model-info")
 def model_info():
     return app.state.model_info
+
+
+app.include_router(patient_router)
+
+
+# The web app (index.html, app.js, i18n.js) at the site root. Mounted last so
+# the /api routes above take priority.
+app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
 
 
 def _model_info(clinical):
