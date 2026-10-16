@@ -1,0 +1,32 @@
+{
+  "uci_heart": {
+    "rows": 303,
+    "features": 15,
+    "prevalence": 0.455,
+    "age_range": "29-77",
+    "sex": {
+      "Male": 0.683,
+      "Female": 0.317
+    },
+    "age_band": {
+      "45-59": 0.518,
+      "60+": 0.297,
+      "<45": 0.185
+    }
+  },
+  "sa_heart": {
+    "rows": 462,
+    "features": 13,
+    "prevalence": 0.346,
+    "age_range": "15-64",
+    "age_band": {
+      "<45": 0.491,
+      "45-59": 0.37,
+      "60+": 0.139
+    },
+    "family_history": {
+      "Absent": 0.584,
+      "Present": 0.416
+    }
+  }
+}

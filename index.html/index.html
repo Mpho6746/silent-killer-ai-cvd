@@ -6,6 +6,608 @@
     <title>SKAI - Silent Killer AI Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+    // SKAI UI translations: English plus South Africa's nine official indigenous languages.
+    // Clinical terms with no common local equivalent (ECG, ST, Cholesterol, Angina, SHAP)
+    // are kept as loanwords. These translations should be reviewed by native speakers
+    // before being used with real patients.
+
+    window.SKAI_LANGUAGES = [
+        { code: 'en',  label: 'English',    name: 'English' },
+        { code: 'zu',  label: 'isiZulu',    name: 'isiZulu (Zulu)' },
+        { code: 'xh',  label: 'isiXhosa',   name: 'isiXhosa (Xhosa)' },
+        { code: 'nr',  label: 'isiNdebele', name: 'isiNdebele (Southern Ndebele)' },
+        { code: 'nso', label: 'Sepedi',     name: 'Sepedi (Northern Sotho)' },
+        { code: 'st',  label: 'Sesotho',    name: 'Sesotho (Southern Sotho)' },
+        { code: 'tn',  label: 'Setswana',   name: 'Setswana (Tswana)' },
+        { code: 'ss',  label: 'siSwati',    name: 'siSwati (Swati)' },
+        { code: 've',  label: 'Tshivenḓa',  name: 'Tshivenḓa (Venda)' },
+        { code: 'ts',  label: 'Xitsonga',   name: 'Xitsonga (Tsonga)' }
+    ];
+
+    window.SKAI_I18N = {
+        en: {
+            subtitle: "Silent Killer AI",
+            btn_staff: "Staff Portal",
+            btn_patient: "Patient Tracker",
+            export_report: "Export",
+            critical_queue: "Critical Queue",
+            health: "Health",
+            status_low: "Optimal Health Status",
+            daily_meds: "Daily Medications",
+            user_id: "User ID / Email",
+            password: "Password",
+            clinical: "Clinical",
+            search_ph: "Search ID or Name...",
+            action_req: "Action Req.",
+            risk: "Risk",
+            log_vitals: "Log Vitals",
+            analysis_engine: "Analysis Engine",
+            shap_subtitle: "Interactive SHAP interpretability & counterfactuals",
+            shap_title: "Live Feature Importance (SHAP)",
+            projected_risk: "Projected Risk",
+            target_bp: "Target BP (mmHg)",
+            target_hr: "Target Max HR (bpm)",
+            staff_greeting: "Good morning, Doctor. Patient <strong>#8942</strong> (Thabo Ndlovu) is flagged in the critical queue. I've generated the SHAP analysis above. Based on the model, his low max heart rate and high resting BP are the primary drivers for the 92.4% risk score. How can I assist with his care plan today?",
+            staff_chat_ph: "Ask SKAI to interpret charts, generate a plan, or log notes...",
+            taken: "Taken",
+            quick_actions: "Quick Actions",
+            log_exercise: "Log Exercise",
+            live_telemetry: "Live Telemetry",
+            health_coach: "SKAI Health Coach",
+            patient_greeting: "Hi John! I'm your SKAI Health Coach. I noticed you haven't logged your blood pressure today. Remember, consistent tracking helps us keep you in the optimal health tier. How are you feeling today?",
+            patient_chat_ph: "Type a message or ask a health question...",
+            self_report_title: "Self-Report Vitals",
+            self_report_desc: "Enter your daily readings from your home monitor or pharmacy clinic.",
+            blood_pressure: "Blood Pressure (mmHg)",
+            systolic_ph: "Systolic (e.g. 120)",
+            diastolic_ph: "Diastolic (e.g. 80)",
+            heart_rate: "Heart Rate (bpm)",
+            fasting_sugar_opt: "Fasting Sugar (Optional)",
+            upload_photo: "Upload Photo for Clinical Verification",
+            self_report_note: 'Data entered here is securely tagged as "Self-Reported" for your doctor.',
+            cancel: "Cancel",
+            save_cloud: "Save to Cloud",
+            clinical_entry: "Clinical Data Entry",
+            clinical_desc: "Data entered here overwrites patient self-reported metrics and is permanently tagged with high-credibility clinical verification.",
+            core_vitals: "Core Vitals",
+            lab_diag: "Laboratory & Diagnostics",
+            patient_id: "Patient ID",
+            resting_bp: "Resting BP",
+            max_hr: "Max HR",
+            chest_pain: "Chest Pain (0-3)",
+            cholesterol: "Cholesterol",
+            fasting_sugar_120: "Fasting Sugar > 120",
+            resting_ecg: "Resting ECG (0-2)",
+            exercise_angina: "Exercise Angina",
+            st_depression: "ST Depression",
+            sign_lock: "Sign & Lock Entry",
+            lang_changed: "Language changed to English"
+        },
+        zu: {
+            subtitle: "I-AI ebulalayo ethule",
+            btn_staff: "Ingosi Yabasebenzi",
+            btn_patient: "Umkhondo Wezempilo",
+            export_report: "Landa",
+            critical_queue: "Eziphuthumayo",
+            health: "Ezempilo",
+            status_low: "Isimo Esihle",
+            daily_meds: "Imithi Yansuku Zonke",
+            user_id: "I-ID Yomsebenzisi / I-imeyili",
+            password: "Iphasiwedi",
+            clinical: "Ezokwelapha",
+            search_ph: "Sesha nge-ID noma Igama...",
+            action_req: "Kudingeka Isinyathelo",
+            risk: "Ubungozi",
+            log_vitals: "Faka Izimpawu Zempilo",
+            analysis_engine: "Injini Yokuhlaziya",
+            shap_subtitle: "Incazelo ye-SHAP esebenzisanayo nezimo ezingaba khona",
+            shap_title: "Ukubaluleka Kwezici Bukhoma (SHAP)",
+            projected_risk: "Ubungozi Obulindelekile",
+            target_bp: "Umfutho Wegazi Okuhlosiwe (mmHg)",
+            target_hr: "Isivinini Senhliziyo Esiphezulu Okuhlosiwe (bpm)",
+            staff_greeting: "Sawubona, Dokotela. Isiguli <strong>#8942</strong> (Thabo Ndlovu) siphawulwe ohlwini lweziphuthumayo. Ngenze ukuhlaziywa kwe-SHAP ngenhla. Ngokwemodeli, isivinini senhliziyo esiphansi kanye nomfutho wegazi ophezulu uma ephumule yizona zimbangela eziyinhloko zobungozi obungu-92.4%. Ngingasiza kanjani ngohlelo lwakhe lokunakekelwa namuhla?",
+            staff_chat_ph: "Cela i-SKAI ichaze amashadi, yenze uhlelo, noma ibhale amanothi...",
+            taken: "Kuthathiwe",
+            quick_actions: "Izenzo Ezisheshayo",
+            log_exercise: "Faka Ukuzivocavoca",
+            live_telemetry: "Ukuqapha Bukhoma",
+            health_coach: "Umqeqeshi Wezempilo we-SKAI",
+            patient_greeting: "Sawubona John! Ngingumqeqeshi wakho wezempilo we-SKAI. Ngibonile ukuthi awukakafaki umfutho wegazi wakho namuhla. Khumbula, ukulandelela njalo kusisiza ukuthi sikugcine usesimweni esihle sempilo. Uzizwa kanjani namuhla?",
+            patient_chat_ph: "Bhala umlayezo noma ubuze umbuzo wezempilo...",
+            self_report_title: "Zifakele Izimpawu Zempilo",
+            self_report_desc: "Faka izilinganiso zakho zansuku zonke ezivela emshinini wakho wasekhaya noma emtholampilo wekhemisi.",
+            blood_pressure: "Umfutho Wegazi (mmHg)",
+            systolic_ph: "I-Systolic (isb. 120)",
+            diastolic_ph: "I-Diastolic (isb. 80)",
+            heart_rate: "Isivinini Senhliziyo (bpm)",
+            fasting_sugar_opt: "Ushukela Ungadlile (Akuphoqelekile)",
+            upload_photo: "Layisha Isithombe Ukuze Kuqinisekiswe Ngudokotela",
+            self_report_note: 'Imininingwane efakwe lapha imakwa ngokuphephile ngokuthi "Ezibikwe Nguwe" ukuze ibonwe ngudokotela wakho.',
+            cancel: "Khansela",
+            save_cloud: "Londoloza Efwini",
+            clinical_entry: "Ukufakwa Kwemininingwane Yezokwelapha",
+            clinical_desc: "Imininingwane efakwe lapha ithatha indawo yezilinganiso ezibikwe yisiguli futhi imakwa unomphela njengeqinisekiswe ngabezokwelapha.",
+            core_vitals: "Izimpawu Zempilo Eziyinhloko",
+            lab_diag: "Ilabhorethri Nokuxilonga",
+            patient_id: "I-ID Yesiguli",
+            resting_bp: "Umfutho Wegazi Uphumule",
+            max_hr: "Isivinini Senhliziyo Esiphezulu",
+            chest_pain: "Ubuhlungu Besifuba (0-3)",
+            cholesterol: "I-Cholesterol",
+            fasting_sugar_120: "Ushukela Ungadlile > 120",
+            resting_ecg: "I-ECG Uphumule (0-2)",
+            exercise_angina: "I-Angina Yokuzivocavoca",
+            st_depression: "Ukwehla kwe-ST",
+            sign_lock: "Sayina Ukhiye Okufakiwe",
+            lang_changed: "Ulimi lushintshwe lwaya kusiZulu"
+        },
+        xh: {
+            subtitle: "I-AI Yesibulali Esithe Cwaka",
+            btn_staff: "Iphothali Yabasebenzi",
+            btn_patient: "Umlandeli Wempilo",
+            export_report: "Thumela Ngaphandle",
+            critical_queue: "Abangxamisekileyo",
+            health: "Impilo",
+            status_low: "Impilo Esemgangathweni",
+            daily_meds: "Amayeza Emihla Ngemihla",
+            user_id: "I-ID Yomsebenzisi / I-imeyile",
+            password: "Igama Lokugqithisa",
+            clinical: "Ezonyango",
+            search_ph: "Khangela nge-ID okanye Igama...",
+            action_req: "Kufuneka Inyathelo",
+            risk: "Umngcipheko",
+            log_vitals: "Bhala Iimpawu Zempilo",
+            analysis_engine: "Injini Yohlalutyo",
+            shap_subtitle: "Ukutolika kwe-SHAP okusebenzisanayo neemeko ezinokwenzeka",
+            shap_title: "Ukubaluleka Kweempawu Ngoku (SHAP)",
+            projected_risk: "Umngcipheko Oqikelelweyo",
+            target_bp: "Uxinzelelo Lwegazi Ekujoliswe Kulo (mmHg)",
+            target_hr: "Esona Santya Sentliziyo Ekujoliswe Kuso (bpm)",
+            staff_greeting: "Molo, Gqirha. Isigulana <strong>#8942</strong> (Thabo Ndlovu) siphawulwe kuluhlu lwabangxamisekileyo. Ndenze uhlalutyo lwe-SHAP ngasentla. Ngokwemodeli, isantya sentliziyo esiphantsi noxinzelelo lwegazi oluphezulu xa ephumle zezona zizathu eziphambili zomngcipheko oyi-92.4%. Ndingakunceda njani ngesicwangciso sakhe sokhathalelo namhlanje?",
+            staff_chat_ph: "Cela i-SKAI itolike iitshati, yenze isicwangciso, okanye ibhale amanqaku...",
+            taken: "Kuthatyathiwe",
+            quick_actions: "Izenzo Ezikhawulezayo",
+            log_exercise: "Bhala Umthambo",
+            live_telemetry: "Ukubeka Iliso Ngoku",
+            health_coach: "Umqeqeshi Wempilo we-SKAI",
+            patient_greeting: "Molo John! Ndingumqeqeshi wakho wempilo we-SKAI. Ndiqaphele ukuba awukabhali uxinzelelo lwegazi lwakho namhlanje. Khumbula, ukulandelela rhoqo kusinceda sikugcine kwinqanaba lempilo elisemgangathweni. Uziva njani namhlanje?",
+            patient_chat_ph: "Bhala umyalezo okanye ubuze umbuzo wempilo...",
+            self_report_title: "Zibhalele Iimpawu Zempilo",
+            self_report_desc: "Faka imilinganiselo yakho yemihla ngemihla evela kumatshini wakho wasekhaya okanye ekliniki yekhemesti.",
+            blood_pressure: "Uxinzelelo Lwegazi (mmHg)",
+            systolic_ph: "I-Systolic (umz. 120)",
+            diastolic_ph: "I-Diastolic (umz. 80)",
+            heart_rate: "Isantya Sentliziyo (bpm)",
+            fasting_sugar_opt: "Iswekile Ungatyanga (Ayinyanzelekanga)",
+            upload_photo: "Layisha Ifoto Ukuze Iqinisekiswe Ngugqirha",
+            self_report_note: 'Iinkcukacha ezifakwe apha ziphawulwa ngokukhuselekileyo njenge-"Ezizibhalele" ukuze zibonwe ngugqirha wakho.',
+            cancel: "Rhoxisa",
+            save_cloud: "Gcina Efini",
+            clinical_entry: "Ukufakwa Kweenkcukacha Zonyango",
+            clinical_desc: "Iinkcukacha ezifakwe apha zithatha indawo yemilinganiselo ebhalwe sisigulana kwaye ziphawulwa ngokusisigxina njengeziqinisekiswe ngabezonyango.",
+            core_vitals: "Iimpawu Zempilo Eziphambili",
+            lab_diag: "Ilabhoratri Noxilongo",
+            patient_id: "I-ID Yesigulana",
+            resting_bp: "Uxinzelelo Lwegazi Uphumle",
+            max_hr: "Esona Santya Sentliziyo",
+            chest_pain: "Intlungu Yesifuba (0-3)",
+            cholesterol: "I-Cholesterol",
+            fasting_sugar_120: "Iswekile Ungatyanga > 120",
+            resting_ecg: "I-ECG Uphumle (0-2)",
+            exercise_angina: "I-Angina Yokuzilolonga",
+            st_depression: "Ukuhla kwe-ST",
+            sign_lock: "Tyikitya Utshixe Okufakiweyo",
+            lang_changed: "Ulwimi lutshintshelwe kwisiXhosa"
+        },
+        nr: {
+            subtitle: "I-AI Yombulali Othulileko",
+            btn_staff: "Iphothali Yabasebenzi",
+            btn_patient: "Umlandeli Wepilo",
+            export_report: "Thumela Ngaphandle",
+            critical_queue: "Abaphuthumako",
+            health: "Ipilo",
+            status_low: "Ipilo Esemzileni Omuhle",
+            daily_meds: "Imitjhoga Yamalanga Woke",
+            user_id: "I-ID Yomsebenzisi / I-imeyili",
+            password: "Iphasiwedi",
+            clinical: "Ezokwelapha",
+            search_ph: "Funa nge-ID namkha Ibizo...",
+            action_req: "Kutlhogeka Igadango",
+            risk: "Ubungozi",
+            log_vitals: "Faka Iimpawu Zepilo",
+            analysis_engine: "Ijini Yokuhlathulula",
+            shap_subtitle: "Ihlathululo ye-SHAP esebenzisanako neemo ezingaba khona",
+            shap_title: "Ukuqakatheka Kweempawu Nje (SHAP)",
+            projected_risk: "Ubungozi Obulindelekileko",
+            target_bp: "Ipressha Yeengazi Ehlosiweko (mmHg)",
+            target_hr: "Ibelo Lehliziyo Eliphezulu Elihlosiweko (bpm)",
+            staff_greeting: "Lotjha, Dokotela. Umguli <strong>#8942</strong> (Thabo Ndlovu) utshwayiwe erhelweni labaphuthumako. Ngenze ihlathululo ye-SHAP ngehla. Ngokwemodeli, ibelo lehliziyo eliphasi nepressha yeengazi ephezulu nakaphumulile ziimbangela ezikhulu zobungozi obuyi-92.4%. Ngingasiza njani ngehlelo lakhe lokutlhogonyelwa namhlanje?",
+            staff_chat_ph: "Bawa i-SKAI ihlathulule amatjhadi, yenze ihlelo, namkha itlole amanothi...",
+            taken: "Kuthethiwe",
+            quick_actions: "Izenzo Ezirhabako",
+            log_exercise: "Faka Ukuzivocavoca",
+            live_telemetry: "Ukuqapha Nje",
+            health_coach: "Umqeqetjhi Wepilo we-SKAI",
+            patient_greeting: "Lotjha John! Ngimqeqetjhi wakho wepilo we-SKAI. Ngibonile bona awukafaki ipressha yeengazi yakho namhlanje. Khumbula, ukulandelela qobe kusisiza bona sikugcine usemzileni omuhle wepilo. Uzizwa njani namhlanje?",
+            patient_chat_ph: "Tlola umlayezo namkha ubuze umbuzo wepilo...",
+            self_report_title: "Zifakele Iimpawu Zepilo",
+            self_report_desc: "Faka iimbalo zakho zamalanga woke ezivela emtjhinini wakho wekhaya namkha ekliniki yekhemisi.",
+            blood_pressure: "Ipressha Yeengazi (mmHg)",
+            systolic_ph: "I-Systolic (isib. 120)",
+            diastolic_ph: "I-Diastolic (isib. 80)",
+            heart_rate: "Ibelo Lehliziyo (bpm)",
+            fasting_sugar_opt: "Iswigiri Ungakadli (Akukatelelekile)",
+            upload_photo: "Layisha Isithombe Bona Siqinisekiswe Ngudokotela",
+            self_report_note: 'Imininingwana efakwe lapha itshwayiwa ngokuphephileko ngokuthi "Ezibikwe Nguwe" bona ibonwe ngudokotela wakho.',
+            cancel: "Khansela",
+            save_cloud: "Bulunga Efwini",
+            clinical_entry: "Ukufakwa Kwemininingwana Yezokwelapha",
+            clinical_desc: "Imininingwana efakwe lapha ithatha indawo yeembalo ezibikwe mguli begodu itshwayiwa unomphela njengeqinisekiswe ngabezokwelapha.",
+            core_vitals: "Iimpawu Zepilo Eziqakathekileko",
+            lab_diag: "Ilabhorathri Nokuhlolwa",
+            patient_id: "I-ID Yomguli",
+            resting_bp: "Ipressha Yeengazi Uphumulile",
+            max_hr: "Ibelo Lehliziyo Eliphezulu",
+            chest_pain: "Ubuhlungu Besifuba (0-3)",
+            cholesterol: "I-Cholesterol",
+            fasting_sugar_120: "Iswigiri Ungakadli > 120",
+            resting_ecg: "I-ECG Uphumulile (0-2)",
+            exercise_angina: "I-Angina Yokuzivocavoca",
+            st_depression: "Ukwehla kwe-ST",
+            sign_lock: "Sayina Ukhiye Okufakiweko",
+            lang_changed: "Ilimi litjhentjhelwe esiNdebeleni"
+        },
+        nso: {
+            subtitle: "AI ya Sebolai se se Homotšego",
+            btn_staff: "Potale ya Bašomi",
+            btn_patient: "Mosepediši wa Maphelo",
+            export_report: "Romela Ntle",
+            critical_queue: "Ba ba Hlokago Thušo ka Pela",
+            health: "Maphelo",
+            status_low: "Boemo bjo Bobotse bja Maphelo",
+            daily_meds: "Dihlare tša Letšatši le Letšatši",
+            user_id: "ID ya Modiriši / Imeile",
+            password: "Lentšuphetišo",
+            clinical: "Kalafo",
+            search_ph: "Nyaka ka ID goba Leina...",
+            action_req: "Go Hlokega Kgato",
+            risk: "Kotsi",
+            log_vitals: "Ngwala Dipontšho tša Maphelo",
+            analysis_engine: "Enjene ya Tshekatsheko",
+            shap_subtitle: "Tlhathollo ya SHAP ya tirišano le maemo a kgonagalago",
+            shap_title: "Bohlokwa bja Dipharologanyi ga Bjale (SHAP)",
+            projected_risk: "Kotsi ye e Akanywago",
+            target_bp: "Kgatelelo ya Madi ye e Nepilwego (mmHg)",
+            target_hr: "Lebelo la Godimo la Pelo le le Nepilwego (bpm)",
+            staff_greeting: "Thobela, Ngaka. Molwetši <strong>#8942</strong> (Thabo Ndlovu) o swailwe lenaneong la ba ba hlokago thušo ka pela. Ke dirile tshekatsheko ya SHAP ka godimo. Go ya ka mmotlolo, lebelo la fase la pelo le kgatelelo ya godimo ya madi ge a khutšitše ke dintlha tše dikgolo tša kotsi ya 92.4%. Nka go thuša bjang ka leano la gagwe la tlhokomelo lehono?",
+            staff_chat_ph: "Kgopela SKAI go hlaloša ditšhate, go dira leano, goba go ngwala dintlha...",
+            taken: "Di Nwelwe",
+            quick_actions: "Ditiro tša ka Pela",
+            log_exercise: "Ngwala Boitšhidullo",
+            live_telemetry: "Tekolo ya ga Bjale",
+            health_coach: "Mohlahli wa Maphelo wa SKAI",
+            patient_greeting: "Thobela John! Ke mohlahli wa gago wa maphelo wa SKAI. Ke lemogile gore ga se o ngwale kgatelelo ya madi a gago lehono. Gopola, go latišiša ka mehla go re thuša go go boloka boemong bjo bobotse bja maphelo. O ikwa bjang lehono?",
+            patient_chat_ph: "Ngwala molaetša goba o botšiše potšišo ya maphelo...",
+            self_report_title: "Ingwalele Dipontšho tša Maphelo",
+            self_report_desc: "Tsenya dipalo tša gago tša letšatši le letšatši go tšwa sedirišweng sa gago sa gae goba kliniking ya khemisi.",
+            blood_pressure: "Kgatelelo ya Madi (mmHg)",
+            systolic_ph: "Systolic (mohlala 120)",
+            diastolic_ph: "Diastolic (mohlala 80)",
+            heart_rate: "Lebelo la Pelo (bpm)",
+            fasting_sugar_opt: "Swikiri o sa Ja (Ga se Kgapeletšo)",
+            upload_photo: "Romela Seswantšho gore se Netefatšwe ke Ngaka",
+            self_report_note: 'Tshedimošo ye e tsentšwego mo e swailwe ka polokego bjalo ka "Ye e Begilwego ke Wena" bakeng sa ngaka ya gago.',
+            cancel: "Khansela",
+            save_cloud: "Boloka Leruing",
+            clinical_entry: "Tsenyo ya Tshedimošo ya Kalafo",
+            clinical_desc: "Tshedimošo ye e tsentšwego mo e tšea legato la dipalo tše di begilwego ke molwetši gomme e swailwe ka mo go sa felego bjalo ka ye e netefaditšwego ke ba kalafo.",
+            core_vitals: "Dipontšho tše Bohlokwa tša Maphelo",
+            lab_diag: "Laboratori le Tlhahlobo",
+            patient_id: "ID ya Molwetši",
+            resting_bp: "Kgatelelo ya Madi o Khutšitše",
+            max_hr: "Lebelo la Godimo la Pelo",
+            chest_pain: "Bohloko bja Sehuba (0-3)",
+            cholesterol: "Cholesterol",
+            fasting_sugar_120: "Swikiri o sa Ja > 120",
+            resting_ecg: "ECG o Khutšitše (0-2)",
+            exercise_angina: "Angina ya Boitšhidullo",
+            st_depression: "Go Theoga ga ST",
+            sign_lock: "Saena o Notlele Tsenyo",
+            lang_changed: "Polelo e fetotšwe go Sepedi"
+        },
+        st: {
+            subtitle: "AI ya Sebolai se Kgutsitseng",
+            btn_staff: "Potale ya Basebetsi",
+            btn_patient: "Molatedi wa Bophelo",
+            export_report: "Romela Kantle",
+            critical_queue: "Ba Hlokang Thuso ka Potlako",
+            health: "Bophelo",
+            status_low: "Boemo bo Botle ba Bophelo",
+            daily_meds: "Meriana ya Letsatsi le Letsatsi",
+            user_id: "ID ya Mosebedisi / Imeile",
+            password: "Phasewete",
+            clinical: "Bongaka",
+            search_ph: "Batla ka ID kapa Lebitso...",
+            action_req: "Ho Hlokahala Kgato",
+            risk: "Kotsi",
+            log_vitals: "Ngola Matshwao a Bophelo",
+            analysis_engine: "Enjene ya Manollo",
+            shap_subtitle: "Tlhaloso ya SHAP e sebedisanang le maemo a ka bang teng",
+            shap_title: "Bohlokwa ba Dikarolo Hona Jwale (SHAP)",
+            projected_risk: "Kotsi e Lebelletsweng",
+            target_bp: "Kgatello ya Madi e Lebeletsweng (mmHg)",
+            target_hr: "Lebelo le Phahameng la Pelo le Lebeletsweng (bpm)",
+            staff_greeting: "Dumela, Ngaka. Mokudi <strong>#8942</strong> (Thabo Ndlovu) o tshwailwe lethathamong la ba hlokang thuso ka potlako. Ke entse manollo ya SHAP ka hodimo. Ho ya ka mohlala, lebelo le tlase la pelo le kgatello e phahameng ya madi ha a phomotse ke tsona disosa tse kgolo tsa kotsi ya 92.4%. Nka o thusa jwang ka moralo wa hae wa tlhokomelo kajeno?",
+            staff_chat_ph: "Kopa SKAI ho hlalosa ditjhate, ho etsa moralo, kapa ho ngola dintlha...",
+            taken: "E Nkuwe",
+            quick_actions: "Diketso tse Potlakileng",
+            log_exercise: "Ngola Boikwetliso",
+            live_telemetry: "Tlhokomelo ya Hona Jwale",
+            health_coach: "Mokwetlisi wa Bophelo wa SKAI",
+            patient_greeting: "Dumela John! Ke mokwetlisi wa hao wa bophelo wa SKAI. Ke hlokometse hore ha o eso ngole kgatello ya madi a hao kajeno. Hopola, ho latela kamehla ho re thusa ho o boloka boemong bo botle ba bophelo. O ikutlwa jwang kajeno?",
+            patient_chat_ph: "Ngola molaetsa kapa o botse potso ya bophelo...",
+            self_report_title: "Itlalehele Matshwao a Bophelo",
+            self_report_desc: "Kenya ditekanyo tsa hao tsa letsatsi le letsatsi ho tswa sesebedisweng sa hao sa lapeng kapa tleliniking ya khemisi.",
+            blood_pressure: "Kgatello ya Madi (mmHg)",
+            systolic_ph: "Systolic (mohl. 120)",
+            diastolic_ph: "Diastolic (mohl. 80)",
+            heart_rate: "Lebelo la Pelo (bpm)",
+            fasting_sugar_opt: "Tswekere o sa Ja (Ha se Qobello)",
+            upload_photo: "Romela Setshwantsho hore se Netefatswe ke Ngaka",
+            self_report_note: 'Lesedi le kentsweng mona le tshwailwe ka polokeho jwalo ka "Le Tlalehilweng ke Wena" bakeng sa ngaka ya hao.',
+            cancel: "Hlakola",
+            save_cloud: "Boloka Lerung",
+            clinical_entry: "Kenyo ya Lesedi la Bongaka",
+            clinical_desc: "Lesedi le kentsweng mona le nka sebaka sa ditekanyo tse tlalehilweng ke mokudi mme le tshwailwe ka ho sa feleng jwalo ka le netefaditsweng ke ba bongaka.",
+            core_vitals: "Matshwao a Bohlokwa a Bophelo",
+            lab_diag: "Laboratori le Tlhahlobo",
+            patient_id: "ID ya Mokudi",
+            resting_bp: "Kgatello ya Madi o Phomotse",
+            max_hr: "Lebelo le Phahameng la Pelo",
+            chest_pain: "Bohloko ba Sefuba (0-3)",
+            cholesterol: "Cholesterol",
+            fasting_sugar_120: "Tswekere o sa Ja > 120",
+            resting_ecg: "ECG o Phomotse (0-2)",
+            exercise_angina: "Angina ya Boikwetliso",
+            st_depression: "Ho Theoha ha ST",
+            sign_lock: "Saena o Notlele Kenyo",
+            lang_changed: "Puo e fetotswe ho Sesotho"
+        },
+        tn: {
+            subtitle: "AI ya Mmolai yo o Didimetseng",
+            btn_staff: "Potala ya Badiri",
+            btn_patient: "Molatedi wa Boitekanelo",
+            export_report: "Romela Kwa Ntle",
+            critical_queue: "Ba ba Tlhokang Thuso ka Bonako",
+            health: "Boitekanelo",
+            status_low: "Seemo se se Siameng sa Boitekanelo",
+            daily_meds: "Melemo ya Letsatsi le Letsatsi",
+            user_id: "ID ya Modirisi / Imeile",
+            password: "Lefoko la Sephiri",
+            clinical: "Kalafi",
+            search_ph: "Batla ka ID kgotsa Leina...",
+            action_req: "Go Tlhokega Kgato",
+            risk: "Kotsi",
+            log_vitals: "Kwala Ditshupo tsa Boitekanelo",
+            analysis_engine: "Enjene ya Tshekatsheko",
+            shap_subtitle: "Tlhaloso ya SHAP e e dirisanang le maemo a a ka nnang teng",
+            shap_title: "Botlhokwa jwa Dikarolo Jaanong (SHAP)",
+            projected_risk: "Kotsi e e Solofetsweng",
+            target_bp: "Kgatelelo ya Madi e e Ikaeletsweng (mmHg)",
+            target_hr: "Lebelo la Pelo le le Kwa Godimo le le Ikaeletsweng (bpm)",
+            staff_greeting: "Dumela, Ngaka. Molwetse <strong>#8942</strong> (Thabo Ndlovu) o tshwailwe mo lenaaneng la ba ba tlhokang thuso ka bonako. Ke dirile tshekatsheko ya SHAP fa godimo. Go ya ka sekao, lebelo le le kwa tlase la pelo le kgatelelo e e kwa godimo ya madi fa a ikhuditse ke tsone dintlha tse dikgolo tsa kotsi ya 92.4%. Nka go thusa jang ka leano la gagwe la tlhokomelo gompieno?",
+            staff_chat_ph: "Kopa SKAI go tlhalosa ditshate, go dira leano, kgotsa go kwala dintlha...",
+            taken: "E Nwilwe",
+            quick_actions: "Ditiro tsa ka Bonako",
+            log_exercise: "Kwala Boikatiso",
+            live_telemetry: "Tlhokomelo ya Jaanong",
+            health_coach: "Mokatisi wa Boitekanelo wa SKAI",
+            patient_greeting: "Dumela John! Ke mokatisi wa gago wa boitekanelo wa SKAI. Ke lemogile gore ga o ise o kwale kgatelelo ya madi a gago gompieno. Gakologelwa, go sala morago ka metlha go re thusa go go tshola mo seemong se se siameng sa boitekanelo. O ikutlwa jang gompieno?",
+            patient_chat_ph: "Kwala molaetsa kgotsa o botse potso ya boitekanelo...",
+            self_report_title: "Ikwalele Ditshupo tsa Boitekanelo",
+            self_report_desc: "Tsenya dipalo tsa gago tsa letsatsi le letsatsi go tswa mo sedirisiweng sa gago sa gae kgotsa kwa kliniking ya khemisi.",
+            blood_pressure: "Kgatelelo ya Madi (mmHg)",
+            systolic_ph: "Systolic (sk. 120)",
+            diastolic_ph: "Diastolic (sk. 80)",
+            heart_rate: "Lebelo la Pelo (bpm)",
+            fasting_sugar_opt: "Sukiri o sa Ja (Ga go Patelediwe)",
+            upload_photo: "Romela Setshwantsho gore se Netefadiwe ke Ngaka",
+            self_report_note: 'Tshedimosetso e e tsentsweng fa e tshwailwe ka polokesego jaaka "E e Begilweng ke Wena" go ngaka ya gago.',
+            cancel: "Khansela",
+            save_cloud: "Boloka mo Leruing",
+            clinical_entry: "Tsenyo ya Tshedimosetso ya Kalafi",
+            clinical_desc: "Tshedimosetso e e tsentsweng fa e tsaya sebaka sa dipalo tse di begilweng ke molwetse mme e tshwailwe ka bosakhutleng jaaka e e netefaditsweng ke ba kalafi.",
+            core_vitals: "Ditshupo tse di Botlhokwa tsa Boitekanelo",
+            lab_diag: "Laboratori le Tlhatlhobo",
+            patient_id: "ID ya Molwetse",
+            resting_bp: "Kgatelelo ya Madi o Ikhuditse",
+            max_hr: "Lebelo le le Kwa Godimo la Pelo",
+            chest_pain: "Botlhoko jwa Sehuba (0-3)",
+            cholesterol: "Cholesterol",
+            fasting_sugar_120: "Sukiri o sa Ja > 120",
+            resting_ecg: "ECG o Ikhuditse (0-2)",
+            exercise_angina: "Angina ya Boikatiso",
+            st_depression: "Go Wela ga ST",
+            sign_lock: "Saena o Lotlele Tsenyo",
+            lang_changed: "Puo e fetoletswe go Setswana"
+        },
+        ss: {
+            subtitle: "I-AI Yembulali Lothulile",
+            btn_staff: "Liphothali Yetisebenti",
+            btn_patient: "Umlandzeli Wemphilo",
+            export_report: "Tfumela Ngaphandle",
+            critical_queue: "Labaphutfumako",
+            health: "Imphilo",
+            status_low: "Simo Lesihle Semphilo",
+            daily_meds: "Imitsi Yemalanga Onkhe",
+            user_id: "I-ID Yemsebentisi / I-imeyili",
+            password: "Liphasiwedi",
+            clinical: "Tekwelapha",
+            search_ph: "Sesha nge-ID nome Libito...",
+            action_req: "Kudzingeka Sinyatselo",
+            risk: "Ingoti",
+            log_vitals: "Faka Timphawu Temphilo",
+            analysis_engine: "Linjini Yekuhlatiya",
+            shap_subtitle: "Incazelo ye-SHAP lesebentisanako netimo letingaba khona",
+            shap_title: "Kubaluleka Kwetici Nyalo (SHAP)",
+            projected_risk: "Ingoti Lelindzelekile",
+            target_bp: "Umfutfo Wengati Lohlosiwe (mmHg)",
+            target_hr: "Lijubane Lenhlitiyo Lelisetulu Lelihlosiwe (bpm)",
+            staff_greeting: "Sawubona, Dokotela. Sigulana <strong>#8942</strong> (Thabo Ndlovu) siphawulwe ohlwini lwalabaphutfumako. Ngente kuhlatiya kwe-SHAP ngenhla. Ngekwemodeli, lijubane lenhlitiyo leliphansi kanye nemfutfo wengati lophakeme nakaphumule ngito timbangela letinkhulu tengoti leyi-92.4%. Ngingakusita njani ngelihlelo lakhe lekunakekelwa lamuhla?",
+            staff_chat_ph: "Cela i-SKAI ichaze emashadi, yente lihlelo, nome ibhale emanothi...",
+            taken: "Kutsetsiwe",
+            quick_actions: "Tento Letisheshako",
+            log_exercise: "Faka Kuvivinya Umtimba",
+            live_telemetry: "Kucapha Nyalo",
+            health_coach: "Umcecetsi Wemphilo we-SKAI",
+            patient_greeting: "Sawubona John! Ngingumcecetsi wakho wemphilo we-SKAI. Ngibonile kutsi awukafaki umfutfo wengati yakho lamuhla. Khumbula, kulandzelela njalo kusisita kutsi sikugcine usesimeni lesihle semphilo. Utiva njani lamuhla?",
+            patient_chat_ph: "Bhala umlayeto nome ubute umbuto wemphilo...",
+            self_report_title: "Tifakele Timphawu Temphilo",
+            self_report_desc: "Faka tilinganiso takho temalanga onkhe letivela emshinini wakho wasekhaya nome emtfolamphilo wekhemisi.",
+            blood_pressure: "Umfutfo Wengati (mmHg)",
+            systolic_ph: "I-Systolic (sib. 120)",
+            diastolic_ph: "I-Diastolic (sib. 80)",
+            heart_rate: "Lijubane Lenhlitiyo (bpm)",
+            fasting_sugar_opt: "Shukela Ungakadli (Akuphoceleleki)",
+            upload_photo: "Layisha Sitfombe Kute Sicinisekiswe Ngudokotela",
+            self_report_note: 'Imininingwane lefakwe lapha imakwa ngekuphepha ngekutsi "Lebikwe Nguwe" kute ibonwe ngudokotela wakho.',
+            cancel: "Khansela",
+            save_cloud: "Gcina Efwini",
+            clinical_entry: "Kufakwa Kwemininingwane Yetekwelapha",
+            clinical_desc: "Imininingwane lefakwe lapha itsatsa indzawo yetilinganiso letibikwe sigulana futsi imakwa unaphakadze njengalecinisekiswe ngebetekwelapha.",
+            core_vitals: "Timphawu Temphilo Letibalulekile",
+            lab_diag: "Ilabhorethri Nekuhlolwa",
+            patient_id: "I-ID Yesigulana",
+            resting_bp: "Umfutfo Wengati Uphumule",
+            max_hr: "Lijubane Lenhlitiyo Lelisetulu",
+            chest_pain: "Buhlungu Besifuba (0-3)",
+            cholesterol: "I-Cholesterol",
+            fasting_sugar_120: "Shukela Ungakadli > 120",
+            resting_ecg: "I-ECG Uphumule (0-2)",
+            exercise_angina: "I-Angina Yekuvivinya Umtimba",
+            st_depression: "Kwehla kwe-ST",
+            sign_lock: "Sayina Uvale Lokufakiwe",
+            lang_changed: "Lulwimi lushintjelwe esiSwatini"
+        },
+        ve: {
+            subtitle: "AI ya Tshivhulahi tsho Dzikaho",
+            btn_staff: "Phothala ya Vhashumi",
+            btn_patient: "Mutevhedzeli wa Mutakalo",
+            export_report: "Rumela Nnḓa",
+            critical_queue: "Vha Ṱoḓaho Thuso nga u Ṱavhanya",
+            health: "Mutakalo",
+            status_low: "Tshiimo tsha Mutakalo tshavhuḓi",
+            daily_meds: "Mishonga ya Ḓuvha Ḽiṅwe na Ḽiṅwe",
+            user_id: "ID ya Mushumisi / Imeili",
+            password: "Phasiwedi",
+            clinical: "Zwa Vhulafhi",
+            search_ph: "Ṱoḓani nga ID kana Dzina...",
+            action_req: "Hu Ṱoḓea Vhuito",
+            risk: "Khombo",
+            log_vitals: "Ṅwalani Zwiga zwa Mutakalo",
+            analysis_engine: "Inzhini ya Musengulo",
+            shap_subtitle: "Ṱhaluso ya SHAP i shumisanaho na zwiimo zwine zwa nga vha hone",
+            shap_title: "Ndeme ya Zwipiḓa Zwino (SHAP)",
+            projected_risk: "Khombo i Lavhelelwaho",
+            target_bp: "Mutsikiso wa Malofha u Lavhelelwaho (mmHg)",
+            target_hr: "U Rwa ha Mbilu ha Nṱhesa hu Lavhelelwaho (bpm)",
+            staff_greeting: "Ndi matsheloni, Dokotela. Mulwadze <strong>#8942</strong> (Thabo Ndlovu) o swayiwa kha mutevhe wa vha ṱoḓaho thuso nga u ṱavhanya. Ndo ita musengulo wa SHAP afho nṱha. U ya nga modele, u rwa ha mbilu ha fhasi na mutsikiso wa malofha wa nṱha musi o awela ndi zwone zwiitisi zwihulwane zwa khombo ya 92.4%. Ndi nga ni thusa hani nga pulane yawe ya ndondolo ṋamusi?",
+            staff_chat_ph: "Humbelani SKAI i ṱalutshedze tshati, i ite pulane, kana i ṅwale zwiṅwalwa...",
+            taken: "Zwo Dzhiiwa",
+            quick_actions: "Zwiito zwa u Ṱavhanya",
+            log_exercise: "Ṅwalani Nyonyoloso",
+            live_telemetry: "U Sedza Zwino",
+            health_coach: "Mugudisi wa Mutakalo wa SKAI",
+            patient_greeting: "Ndaa John! Ndi mugudisi waṋu wa mutakalo wa SKAI. Ndo vhona uri a no ngo ṅwala mutsikiso waṋu wa malofha ṋamusi. Humbulani, u tevhela tshifhinga tshoṱhe zwi ri thusa u ni vhulunga kha tshiimo tshavhuḓi tsha mutakalo. Ni khou ḓipfa hani ṋamusi?",
+            patient_chat_ph: "Ṅwalani mulaedza kana ni vhudzise mbudziso ya mutakalo...",
+            self_report_title: "Ḓiṅwaleleni Zwiga zwa Mutakalo",
+            self_report_desc: "Dzhenisani zwikalo zwaṋu zwa ḓuvha ḽiṅwe na ḽiṅwe u bva kha tshishumiswa tshaṋu tsha hayani kana kiliniki ya khemisi.",
+            blood_pressure: "Mutsikiso wa Malofha (mmHg)",
+            systolic_ph: "Systolic (tsumbo 120)",
+            diastolic_ph: "Diastolic (tsumbo 80)",
+            heart_rate: "U Rwa ha Mbilu (bpm)",
+            fasting_sugar_opt: "Swigiri ni sa Ḽi (A zwi Kombetshedzwi)",
+            upload_photo: "Rumelani Tshifanyiso uri tshi Khwaṱhisedzwe nga Dokotela",
+            self_report_note: 'Mafhungo o dzheniswaho fhano o swayiwa nga tsireledzo sa "Zwo Ṱaluswaho nga Inwi" u itela dokotela waṋu.',
+            cancel: "Khantselani",
+            save_cloud: "Vhulungani kha Gole",
+            clinical_entry: "U Dzhenisa Mafhungo a Vhulafhi",
+            clinical_desc: "Mafhungo o dzheniswaho fhano a dzhia vhudzulo ha zwikalo zwo ṱaluswaho nga mulwadze nahone a swayiwa tshoṱhe sa o khwaṱhisedzwaho nga vha vhulafhi.",
+            core_vitals: "Zwiga zwa Ndeme zwa Mutakalo",
+            lab_diag: "Laborathari na Ndingo",
+            patient_id: "ID ya Mulwadze",
+            resting_bp: "Mutsikiso wa Malofha no Awela",
+            max_hr: "U Rwa ha Mbilu ha Nṱhesa",
+            chest_pain: "Vhutungu ha Khana (0-3)",
+            cholesterol: "Cholesterol",
+            fasting_sugar_120: "Swigiri ni sa Ḽi > 120",
+            resting_ecg: "ECG no Awela (0-2)",
+            exercise_angina: "Angina ya Nyonyoloso",
+            st_depression: "U Tsa ha ST",
+            sign_lock: "Sainani ni Hadzhe Zwo Dzheniswaho",
+            lang_changed: "Luambo lwo shandukiswa lwa vha Tshivenḓa"
+        },
+        ts: {
+            subtitle: "AI ya Xidlayi lexi Miyeleke",
+            btn_staff: "Phothali ya Vatirhi",
+            btn_patient: "Mulandzeri wa Rihanyo",
+            export_report: "Rhumela Ehandle",
+            critical_queue: "Lava Lavaka Mpfuno hi ku Hatlisa",
+            health: "Rihanyo",
+            status_low: "Xiyimo xa Rihanyo lexinene",
+            daily_meds: "Mirhi ya Siku na Siku",
+            user_id: "ID ya Mutirhisi / Imeyili",
+            password: "Phasiwedi",
+            clinical: "Swa Vutshunguri",
+            search_ph: "Lava hi ID kumbe Vito...",
+            action_req: "Ku Laveka Goza",
+            risk: "Khombo",
+            log_vitals: "Tsala Swikombiso swa Rihanyo",
+            analysis_engine: "Njhini ya Nxopaxopo",
+            shap_subtitle: "Ntlhamuselo wa SHAP lowu tirhisanaka ni swiyimo leswi nga vaka kona",
+            shap_title: "Nkoka wa Swiphemu Sweswi (SHAP)",
+            projected_risk: "Khombo leri Languteriweke",
+            target_bp: "Ntshikelelo wa Ngati lowu Kongomisiweke (mmHg)",
+            target_hr: "Rivilo ra le Henhla ra Mbilu leri Kongomisiweke (bpm)",
+            staff_greeting: "Mixo lowunene, Dokodela. Muvabyi <strong>#8942</strong> (Thabo Ndlovu) u fungiwile eka nxaxamelo wa lava lavaka mpfuno hi ku hatlisa. Ndzi endlile nxopaxopo wa SHAP laha henhla. Hi ku ya hi modele, rivilo ra le hansi ra mbilu ni ntshikelelo wa le henhla wa ngati loko a wisile i swona swivangelo leswikulu swa khombo ra 92.4%. Ndzi nga ku pfuna njhani hi pulani ya yena ya nhlayiso namuntlha?",
+            staff_chat_ph: "Kombela SKAI ku hlamusela tichati, ku endla pulani, kumbe ku tsala tinotsi...",
+            taken: "Swi Nwiwile",
+            quick_actions: "Swiendlo swo Hatlisa",
+            log_exercise: "Tsala Ku Titoloveta",
+            live_telemetry: "Ku Langutisa Sweswi",
+            health_coach: "Mudyondzisi wa Rihanyo wa SKAI",
+            patient_greeting: "Avuxeni John! Hi mina mudyondzisi wa wena wa rihanyo wa SKAI. Ndzi xiyile leswaku a wu si tsala ntshikelelo wa ngati ya wena namuntlha. Tsundzuka, ku landzelela nkarhi hinkwawo swi hi pfuna ku ku hlayisa eka xiyimo xa rihanyo lexinene. U titwa njhani namuntlha?",
+            patient_chat_ph: "Tsala rungula kumbe u vutisa xivutiso xa rihanyo...",
+            self_report_title: "Titsalela Swikombiso swa Rihanyo",
+            self_report_desc: "Nghenisa mimpimo ya wena ya siku na siku ku suka eka xitirhisiwa xa wena xa le kaya kumbe ekliniki ya khemisi.",
+            blood_pressure: "Ntshikelelo wa Ngati (mmHg)",
+            systolic_ph: "Systolic (xik. 120)",
+            diastolic_ph: "Diastolic (xik. 80)",
+            heart_rate: "Rivilo ra Mbilu (bpm)",
+            fasting_sugar_opt: "Swikiri u Nga Dyanga (A swi Bohi)",
+            upload_photo: "Rhumela Xifaniso leswaku xi Tiyisisiwa hi Dokodela",
+            self_report_note: 'Vuxokoxoko lebyi nghenisiweke laha byi fungiwile hi vuhlayiseki tanihi "Leswi Vikiweke hi Wena" eka dokodela wa wena.',
+            cancel: "Khansela",
+            save_cloud: "Hlayisa eRifu",
+            clinical_entry: "Ku Nghenisa Vuxokoxoko bya Vutshunguri",
+            clinical_desc: "Vuxokoxoko lebyi nghenisiweke laha byi teka ndhawu ya mimpimo leyi vikiweke hi muvabyi naswona byi fungiwa hilaha ku nga heriki tanihi lebyi tiyisisiweke hi va vutshunguri.",
+            core_vitals: "Swikombiso swa Nkoka swa Rihanyo",
+            lab_diag: "Laboratori ni Ku Kambela",
+            patient_id: "ID ya Muvabyi",
+            resting_bp: "Ntshikelelo wa Ngati u Wisile",
+            max_hr: "Rivilo ra le Henhla ra Mbilu",
+            chest_pain: "Ku Vava ka Xifuva (0-3)",
+            cholesterol: "Cholesterol",
+            fasting_sugar_120: "Swikiri u Nga Dyanga > 120",
+            resting_ecg: "ECG u Wisile (0-2)",
+            exercise_angina: "Angina ya Ku Titoloveta",
+            st_depression: "Ku Rhelela ka ST",
+            sign_lock: "Sayina u Lotlela Leswi Nghenisiweke",
+            lang_changed: "Ririmi ri cinciwile ri va Xitsonga"
+        }
+    };
+    </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -24,6 +626,7 @@
     </script>
     <style>
         body { background-color: #020617; color: #f8fafc; overflow-x: hidden; }
+        .lang-select option { background-color: #0f172a; color: #f8fafc; }
         
         .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-card { background: linear-gradient(145deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
@@ -69,9 +672,9 @@
         <div class="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-skai-secondary rounded-full mix-blend-screen filter blur-[150px] opacity-10"></div>
 
         <!-- Language Toggle -->
-        <div class="absolute top-6 right-6 z-20 flex bg-slate-800/50 rounded-full p-1 border border-slate-700 backdrop-blur-md">
-            <button onclick="toggleLanguage('en')" id="btn-lang-en" class="px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-skai-primary text-white shadow-lg">EN</button>
-            <button onclick="toggleLanguage('zu')" id="btn-lang-zu" class="px-4 py-1.5 rounded-full text-xs font-bold transition-all text-slate-400 hover:text-white">ZU</button>
+        <div class="absolute top-6 right-6 z-20 flex items-center gap-2 bg-slate-800/50 rounded-full pl-4 pr-2 py-1 border border-slate-700 backdrop-blur-md">
+            <i class="fa-solid fa-globe text-skai-primary text-xs"></i>
+            <select onchange="toggleLanguage(this.value)" aria-label="Language" class="lang-select bg-transparent text-white text-xs font-bold py-1.5 pr-1 focus:outline-none cursor-pointer"></select>
         </div>
 
         <div class="glass-card p-8 md:p-12 rounded-3xl flex flex-col items-center max-w-md w-full z-10 mx-4 text-center">
@@ -86,14 +689,14 @@
             
             <div class="w-full space-y-4 mb-8 text-left">
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">User ID / Email</label>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1" data-i18n="user_id">User ID / Email</label>
                     <div class="relative">
                         <i class="fa-solid fa-user absolute left-4 top-3.5 text-slate-500 text-sm"></i>
                         <input type="text" id="login-email" placeholder="e.g. ID-8942 or dr.smith@skai.org" class="w-full bg-slate-900/80 text-sm text-white rounded-xl pl-10 pr-4 py-3 border border-slate-700 focus:outline-none focus:border-skai-primary transition-colors">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Password</label>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1" data-i18n="password">Password</label>
                     <div class="relative">
                         <i class="fa-solid fa-lock absolute left-4 top-3.5 text-slate-500 text-sm"></i>
                         <input type="password" id="login-password" placeholder="••••••••" class="w-full bg-slate-900/80 text-sm text-white rounded-xl pl-10 pr-4 py-3 border border-slate-700 focus:outline-none focus:border-skai-primary transition-colors">
@@ -117,21 +720,21 @@
         <!-- Sidebar -->
         <div class="w-full md:w-80 glass border-r border-slate-800 flex flex-col h-auto md:h-full shrink-0 z-20">
             <div class="p-5 md:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
-                <h2 class="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-skai-primary"></i> SKAI <span class="text-xs md:text-sm font-normal text-slate-400">Clinical</span></h2>
-                <button onclick="logout()" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <h2 class="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-skai-primary"></i> SKAI <span class="text-xs md:text-sm font-normal text-slate-400" data-i18n="clinical">Clinical</span></h2>
+                <div class="flex items-center gap-2"><select onchange="toggleLanguage(this.value)" aria-label="Language" class="lang-select bg-slate-800 border border-slate-700 text-slate-200 text-[11px] rounded-lg px-2 py-1 focus:outline-none focus:border-skai-primary cursor-pointer"></select><button onclick="logout()" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-right-from-bracket"></i></button></div>
             </div>
             
             <div class="p-4 bg-slate-900/20">
                 <div class="relative">
                     <i class="fa-solid fa-search absolute left-3.5 top-3 text-slate-500 text-sm"></i>
-                    <input type="text" placeholder="Search ID or Name..." class="w-full bg-slate-900 text-sm text-white rounded-xl pl-10 pr-4 py-2.5 border border-slate-700 focus:outline-none focus:border-skai-primary transition-colors">
+                    <input type="text" data-i18n-placeholder="search_ph" placeholder="Search ID or Name..." class="w-full bg-slate-900 text-sm text-white rounded-xl pl-10 pr-4 py-2.5 border border-slate-700 focus:outline-none focus:border-skai-primary transition-colors">
                 </div>
             </div>
 
             <div class="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-3">
                 <div class="flex items-center justify-between mb-1">
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="critical_queue">Critical Queue</p>
-                    <span class="bg-red-500/20 text-red-400 text-[9px] px-2 py-0.5 rounded-full border border-red-500/30">2 Action Req.</span>
+                    <span class="bg-red-500/20 text-red-400 text-[9px] px-2 py-0.5 rounded-full border border-red-500/30">2 <span data-i18n="action_req">Action Req.</span></span>
                 </div>
                 
                 <!-- Critical Patient Card -->
@@ -143,11 +746,11 @@
                             <p class="text-xs text-slate-400">ID: #8942 • 62y, M</p>
                         </div>
                         <div class="flex flex-col items-end">
-                            <span class="text-xs bg-red-500 text-white px-2 py-0.5 rounded-md font-bold pulse-alert shadow-lg shadow-red-900/50">92.4% Risk</span>
+                            <span class="text-xs bg-red-500 text-white px-2 py-0.5 rounded-md font-bold pulse-alert shadow-lg shadow-red-900/50">92.4% <span data-i18n="risk">Risk</span></span>
                         </div>
                     </div>
                     <div class="flex gap-2 mt-3 relative z-10">
-                        <button onclick="openModal('staff-log-modal')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-xs py-1.5 rounded-lg border border-slate-600 transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-stethoscope text-skai-primary"></i> Log Vitals</button>
+                        <button onclick="openModal('staff-log-modal')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-xs py-1.5 rounded-lg border border-slate-600 transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-stethoscope text-skai-primary"></i> <span data-i18n="log_vitals">Log Vitals</span></button>
                     </div>
                 </div>
 
@@ -158,7 +761,7 @@
                             <span class="font-bold text-white text-sm">Sarah Venter</span>
                             <p class="text-xs text-slate-400">ID: #4128 • 58y, F</p>
                         </div>
-                        <span class="text-xs bg-yellow-500 text-slate-900 px-2 py-0.5 rounded-md font-bold">58.1% Risk</span>
+                        <span class="text-xs bg-yellow-500 text-slate-900 px-2 py-0.5 rounded-md font-bold">58.1% <span data-i18n="risk">Risk</span></span>
                     </div>
                 </div>
             </div>
@@ -172,8 +775,8 @@
             <div class="h-1/2 md:h-3/5 p-4 md:p-6 border-b border-slate-800 flex flex-col gap-4 overflow-y-auto hide-scrollbar z-10">
                 <div class="flex justify-between items-end mb-2">
                     <div>
-                        <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-network text-skai-primary"></i> #8942 Analysis Engine</h3>
-                        <p class="text-xs text-slate-400">Interactive SHAP interpretability & counterfactuals</p>
+                        <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-network text-skai-primary"></i> #8942 <span data-i18n="analysis_engine">Analysis Engine</span></h3>
+                        <p class="text-xs text-slate-400" data-i18n="shap_subtitle">Interactive SHAP interpretability & counterfactuals</p>
                     </div>
                     <button onclick="generateReport()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 hidden md:flex"><i class="fa-solid fa-file-pdf text-red-400"></i> <span data-i18n="export_report">Export</span></button>
                 </div>
@@ -181,7 +784,7 @@
                 <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[200px]">
                     <!-- SHAP Chart -->
                     <div class="lg:col-span-2 glass-card rounded-2xl border border-slate-700/50 p-4 flex flex-col">
-                        <h4 class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Live Feature Importance (SHAP)</h4>
+                        <h4 class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-2" data-i18n="shap_title">Live Feature Importance (SHAP)</h4>
                         <div class="flex-1 relative w-full"><canvas id="staffShapChart"></canvas></div>
                     </div>
 
@@ -189,17 +792,17 @@
                     <div class="glass-card rounded-2xl border border-slate-700/50 p-4 flex flex-col gap-4">
                         <div class="flex-1 flex flex-col">
                             <div class="flex justify-between items-center mb-2">
-                                <h4 class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Projected Risk</h4>
+                                <h4 class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider" data-i18n="projected_risk">Projected Risk</h4>
                                 <span id="live-risk-score" class="text-xl md:text-2xl font-black text-red-400 transition-colors">92.4%</span>
                             </div>
                             
                             <div class="space-y-4 flex-1 justify-center flex flex-col">
                                 <div>
-                                    <div class="flex justify-between text-[10px] md:text-xs text-slate-300 mb-1"><span>Target BP (mmHg)</span><span id="bp-val" class="font-bold text-skai-primary">160 mmHg</span></div>
+                                    <div class="flex justify-between text-[10px] md:text-xs text-slate-300 mb-1"><span data-i18n="target_bp">Target BP (mmHg)</span><span id="bp-val" class="font-bold text-skai-primary">160 mmHg</span></div>
                                     <input type="range" id="slider-bp" min="100" max="200" value="160" oninput="updateWhatIfScenario()" class="w-full">
                                 </div>
                                 <div>
-                                    <div class="flex justify-between text-[10px] md:text-xs text-slate-300 mb-1"><span>Target Max HR (bpm)</span><span id="hr-val" class="font-bold text-skai-primary">110 bpm</span></div>
+                                    <div class="flex justify-between text-[10px] md:text-xs text-slate-300 mb-1"><span data-i18n="target_hr">Target Max HR (bpm)</span><span id="hr-val" class="font-bold text-skai-primary">110 bpm</span></div>
                                     <input type="range" id="slider-hr" min="80" max="200" value="110" oninput="updateWhatIfScenario()" class="w-full">
                                 </div>
                             </div>
@@ -223,7 +826,7 @@
                     <div class="flex items-start gap-3">
                         <div class="w-8 h-8 rounded-full bg-gradient-to-br from-skai-primary to-blue-600 flex items-center justify-center shrink-0 shadow-lg"><i class="fa-solid fa-robot text-white text-xs"></i></div>
                         <div class="glass-card p-3 md:p-4 rounded-2xl rounded-tl-none max-w-[90%] md:max-w-[85%] text-xs md:text-sm text-slate-200 leading-relaxed shadow-md">
-                            Good morning, Doctor. Patient <strong>#8942</strong> (Thabo Ndlovu) is flagged in the critical queue. I've generated the SHAP analysis above. Based on the model, his low max heart rate and high resting BP are the primary drivers for the 92.4% risk score. How can I assist with his care plan today?
+                            <span data-i18n-html="staff_greeting">Good morning, Doctor. Patient <strong>#8942</strong> (Thabo Ndlovu) is flagged in the critical queue. I've generated the SHAP analysis above. Based on the model, his low max heart rate and high resting BP are the primary drivers for the 92.4% risk score. How can I assist with his care plan today?</span>
                         </div>
                     </div>
                 </div>
@@ -231,7 +834,7 @@
                 <div class="p-3 md:p-4 bg-slate-900/80 border-t border-slate-800 backdrop-blur-md">
                     <div class="relative flex items-center bg-slate-950 rounded-2xl border border-slate-700 focus-within:border-skai-primary transition-colors shadow-inner">
                         <button onclick="toggleVoice('staff')" id="staff-mic" class="absolute left-1.5 md:left-2 w-8 h-8 md:w-9 md:h-9 text-slate-400 hover:text-white rounded-full flex items-center justify-center transition-colors z-10"><i class="fa-solid fa-microphone text-sm"></i></button>
-                        <input id="staff-chat-input" type="text" placeholder="Ask SKAI to interpret charts, generate a plan, or log notes..." class="w-full bg-transparent text-white text-xs md:text-sm pl-10 md:pl-12 pr-12 md:pr-14 py-3 md:py-4 focus:outline-none" onkeypress="handleEnter(event, 'staff')">
+                        <input id="staff-chat-input" type="text" data-i18n-placeholder="staff_chat_ph" placeholder="Ask SKAI to interpret charts, generate a plan, or log notes..." class="w-full bg-transparent text-white text-xs md:text-sm pl-10 md:pl-12 pr-12 md:pr-14 py-3 md:py-4 focus:outline-none" onkeypress="handleEnter(event, 'staff')">
                         <button onclick="sendMessage('staff')" class="absolute right-1.5 md:right-2 w-8 h-8 md:w-10 md:h-10 bg-skai-primary text-white rounded-xl flex items-center justify-center hover:bg-blue-500 transition-all shadow-lg shadow-skai-primary/30 z-10 transform hover:scale-105"><i class="fa-solid fa-paper-plane text-xs md:text-sm"></i></button>
                     </div>
                 </div>
@@ -245,7 +848,7 @@
          <div class="w-full md:w-80 glass border-r border-slate-800 flex flex-col h-auto md:h-full shrink-0 z-20">
             <div class="p-5 md:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
                 <h2 class="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-leaf text-skai-secondary"></i> SKAI <span class="text-xs md:text-sm font-normal text-slate-400" data-i18n="health">Health</span></h2>
-                <button onclick="logout()" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <div class="flex items-center gap-2"><select onchange="toggleLanguage(this.value)" aria-label="Language" class="lang-select bg-slate-800 border border-slate-700 text-slate-200 text-[11px] rounded-lg px-2 py-1 focus:outline-none focus:border-skai-primary cursor-pointer"></select><button onclick="logout()" class="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-right-from-bracket"></i></button></div>
             </div>
             
             <div class="p-6 md:p-8 flex flex-col items-center border-b border-slate-800 relative overflow-hidden bg-slate-900/20">
@@ -280,15 +883,15 @@
                     </div>
                 </div>
 
-                <h4 class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Actions</h4>
+                <h4 class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-3" data-i18n="quick_actions">Quick Actions</h4>
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="openModal('patient-log-modal')" class="bg-gradient-to-br from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 p-3 rounded-xl text-center border border-slate-700 transition flex flex-col items-center justify-center gap-2 group shadow-md">
                         <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fa-solid fa-droplet text-red-400"></i></div>
-                        <span class="text-[10px] md:text-xs font-semibold text-slate-300">Log Vitals</span>
+                        <span class="text-[10px] md:text-xs font-semibold text-slate-300" data-i18n="log_vitals">Log Vitals</span>
                     </button>
                     <button onclick="injectPatientMsg('I just completed a 30-minute cardio workout!')" class="bg-gradient-to-br from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 p-3 rounded-xl text-center border border-slate-700 transition flex flex-col items-center justify-center gap-2 group shadow-md">
                         <div class="w-8 h-8 rounded-full bg-skai-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fa-solid fa-person-running text-skai-primary"></i></div>
-                        <span class="text-[10px] md:text-xs font-semibold text-slate-300">Log Exercise</span>
+                        <span class="text-[10px] md:text-xs font-semibold text-slate-300" data-i18n="log_exercise">Log Exercise</span>
                     </button>
                 </div>
             </div>
@@ -300,7 +903,7 @@
             
             <div class="hidden md:block h-[150px] border-b border-slate-800 relative z-0 overflow-hidden bg-slate-900/30">
                 <div class="absolute top-4 left-6 z-10">
-                    <h3 class="text-xs font-bold text-skai-secondary uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-wave-pulse"></i> Live Telemetry</h3>
+                    <h3 class="text-xs font-bold text-skai-secondary uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-wave-pulse"></i> <span data-i18n="live_telemetry">Live Telemetry</span></h3>
                 </div>
                 <canvas id="ecgCanvas" class="w-full h-full opacity-60"></canvas>
             </div>
@@ -310,7 +913,7 @@
                 <div class="bg-slate-900/60 py-2.5 px-4 md:px-6 border-b border-slate-800 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <div class="w-2 h-2 bg-skai-secondary rounded-full animate-pulse shadow-[0_0_8px_#14b8a6]"></div>
-                        <h3 class="text-xs md:text-sm font-bold text-white">SKAI Health Coach</h3>
+                        <h3 class="text-xs md:text-sm font-bold text-white" data-i18n="health_coach">SKAI Health Coach</h3>
                     </div>
                 </div>
                 
@@ -318,7 +921,7 @@
                     <div class="flex items-start gap-3">
                         <div class="w-8 h-8 rounded-full bg-gradient-to-br from-skai-secondary to-emerald-600 flex items-center justify-center shrink-0 shadow-lg"><i class="fa-solid fa-leaf text-white text-xs"></i></div>
                         <div class="glass-card p-3 md:p-4 rounded-2xl rounded-tl-none max-w-[90%] md:max-w-[85%] text-xs md:text-sm text-slate-200 leading-relaxed shadow-md">
-                            Hi John! I'm your SKAI Health Coach. I noticed you haven't logged your blood pressure today. Remember, consistent tracking helps us keep you in the optimal health tier. How are you feeling today?
+                            <span data-i18n-html="patient_greeting">Hi John! I'm your SKAI Health Coach. I noticed you haven't logged your blood pressure today. Remember, consistent tracking helps us keep you in the optimal health tier. How are you feeling today?</span>
                         </div>
                     </div>
                 </div>
@@ -326,7 +929,7 @@
                 <div class="p-3 md:p-4 bg-slate-900/80 border-t border-slate-800 backdrop-blur-md">
                     <div class="relative flex items-center bg-slate-950 rounded-2xl border border-slate-700 focus-within:border-skai-secondary transition-colors shadow-inner">
                         <button onclick="toggleVoice('patient')" id="patient-mic" class="absolute left-1.5 md:left-2 w-8 h-8 md:w-9 md:h-9 text-slate-400 hover:text-white rounded-full flex items-center justify-center transition-colors z-10"><i class="fa-solid fa-microphone text-sm"></i></button>
-                        <input id="patient-chat-input" type="text" placeholder="Type a message or ask a health question..." class="w-full bg-transparent text-white text-xs md:text-sm pl-10 md:pl-12 pr-12 md:pr-14 py-3 md:py-4 focus:outline-none" onkeypress="handleEnter(event, 'patient')">
+                        <input id="patient-chat-input" type="text" data-i18n-placeholder="patient_chat_ph" placeholder="Type a message or ask a health question..." class="w-full bg-transparent text-white text-xs md:text-sm pl-10 md:pl-12 pr-12 md:pr-14 py-3 md:py-4 focus:outline-none" onkeypress="handleEnter(event, 'patient')">
                         <button onclick="sendMessage('patient')" class="absolute right-1.5 md:right-2 w-8 h-8 md:w-10 md:h-10 bg-skai-secondary text-white rounded-xl flex items-center justify-center hover:bg-teal-500 transition-all shadow-lg shadow-skai-secondary/30 z-10 transform hover:scale-105"><i class="fa-solid fa-paper-plane text-xs md:text-sm text-slate-900"></i></button>
                     </div>
                 </div>
@@ -338,42 +941,42 @@
     <div id="patient-log-modal" class="fixed inset-0 z-[60] bg-black/70 backdrop-blur-md hidden flex items-center justify-center p-4">
         <div class="glass-modal w-full max-w-md rounded-3xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="p-4 md:p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-mobile-screen text-skai-unverified"></i> Self-Report Vitals</h3>
+                <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-mobile-screen text-skai-unverified"></i> <span data-i18n="self_report_title">Self-Report Vitals</span></h3>
                 <button onclick="closeModal('patient-log-modal')" class="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
             <div class="p-4 md:p-6 overflow-y-auto">
-                <p class="text-xs md:text-sm text-slate-400 mb-6">Enter your daily readings from your home monitor or pharmacy clinic.</p>
+                <p class="text-xs md:text-sm text-slate-400 mb-6" data-i18n="self_report_desc">Enter your daily readings from your home monitor or pharmacy clinic.</p>
                 
                 <div class="space-y-4 mb-6">
                     <div>
-                        <label class="block text-[10px] md:text-xs font-bold text-skai-secondary uppercase tracking-wider mb-2">Blood Pressure (mmHg)</label>
+                        <label class="block text-[10px] md:text-xs font-bold text-skai-secondary uppercase tracking-wider mb-2" data-i18n="blood_pressure">Blood Pressure (mmHg)</label>
                         <div class="flex gap-3">
-                            <input type="number" id="pat-bp-sys" placeholder="Systolic (e.g. 120)" class="form-input py-2.5 md:py-3">
+                            <input type="number" id="pat-bp-sys" data-i18n-placeholder="systolic_ph" placeholder="Systolic (e.g. 120)" class="form-input py-2.5 md:py-3">
                             <span class="text-slate-500 text-2xl font-light">/</span>
-                            <input type="number" id="pat-bp-dia" placeholder="Diastolic (e.g. 80)" class="form-input py-2.5 md:py-3">
+                            <input type="number" id="pat-bp-dia" data-i18n-placeholder="diastolic_ph" placeholder="Diastolic (e.g. 80)" class="form-input py-2.5 md:py-3">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[10px] md:text-xs font-bold text-skai-secondary uppercase tracking-wider mb-2">Heart Rate (bpm)</label>
+                        <label class="block text-[10px] md:text-xs font-bold text-skai-secondary uppercase tracking-wider mb-2" data-i18n="heart_rate">Heart Rate (bpm)</label>
                         <input type="number" id="pat-hr" placeholder="e.g. 72" class="form-input py-2.5 md:py-3">
                     </div>
                     <div>
-                        <label class="block text-[10px] md:text-xs font-bold text-skai-secondary uppercase tracking-wider mb-2">Fasting Sugar (Optional)</label>
+                        <label class="block text-[10px] md:text-xs font-bold text-skai-secondary uppercase tracking-wider mb-2" data-i18n="fasting_sugar_opt">Fasting Sugar (Optional)</label>
                         <input type="number" id="pat-fbs" placeholder="mg/dL" class="form-input py-2.5 md:py-3">
                     </div>
                 </div>
                 
                 <button class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl border border-slate-700 border-dashed transition flex items-center justify-center gap-2 text-xs md:text-sm mb-2">
-                    <i class="fa-solid fa-camera"></i> Upload Photo for Clinical Verification
+                    <i class="fa-solid fa-camera"></i> <span data-i18n="upload_photo">Upload Photo for Clinical Verification</span>
                 </button>
-                <p class="text-[9px] md:text-[10px] text-center text-slate-500">Data entered here is securely tagged as "Self-Reported" for your doctor.</p>
+                <p class="text-[9px] md:text-[10px] text-center text-slate-500" data-i18n="self_report_note">Data entered here is securely tagged as "Self-Reported" for your doctor.</p>
             </div>
 
             <div class="p-4 md:p-5 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
-                <button onclick="closeModal('patient-log-modal')" class="px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-300 hover:text-white transition">Cancel</button>
+                <button onclick="closeModal('patient-log-modal')" class="px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-300 hover:text-white transition" data-i18n="cancel">Cancel</button>
                 <button onclick="submitPatientVitals()" class="bg-skai-unverified hover:bg-amber-400 text-slate-900 px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition flex items-center gap-2 shadow-lg shadow-amber-900/20">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Save to Cloud
+                    <i class="fa-solid fa-cloud-arrow-up"></i> <span data-i18n="save_cloud">Save to Cloud</span>
                 </button>
             </div>
         </div>
@@ -383,35 +986,35 @@
     <div id="staff-log-modal" class="fixed inset-0 z-[60] bg-black/70 backdrop-blur-md hidden flex items-center justify-center p-4">
         <div class="glass-modal w-full max-w-2xl rounded-3xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="p-4 md:p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-shield-check text-skai-verified"></i> Clinical Data Entry</h3>
+                <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-shield-check text-skai-verified"></i> <span data-i18n="clinical_entry">Clinical Data Entry</span></h3>
                 <button onclick="closeModal('staff-log-modal')" class="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
             <div class="p-4 md:p-6 overflow-y-auto hide-scrollbar">
-                <p class="text-xs md:text-sm text-slate-400 mb-6">Data entered here overwrites patient self-reported metrics and is permanently tagged with high-credibility clinical verification.</p>
+                <p class="text-xs md:text-sm text-slate-400 mb-6" data-i18n="clinical_desc">Data entered here overwrites patient self-reported metrics and is permanently tagged with high-credibility clinical verification.</p>
                 
-                <h4 class="text-[10px] md:text-xs font-bold text-skai-primary uppercase tracking-wider mb-3">Core Vitals</h4>
+                <h4 class="text-[10px] md:text-xs font-bold text-skai-primary uppercase tracking-wider mb-3" data-i18n="core_vitals">Core Vitals</h4>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
-                    <div class="col-span-2 md:col-span-1"><label class="block text-[10px] md:text-xs text-slate-400 mb-1">Patient ID</label><input type="text" value="#8942" class="form-input bg-slate-800 py-2 md:py-3" disabled></div>
-                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1">Resting BP</label><input type="number" class="form-input py-2 md:py-3"></div>
-                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1">Max HR</label><input type="number" class="form-input py-2 md:py-3"></div>
+                    <div class="col-span-2 md:col-span-1"><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="patient_id">Patient ID</label><input type="text" value="#8942" class="form-input bg-slate-800 py-2 md:py-3" disabled></div>
+                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="resting_bp">Resting BP</label><input type="number" class="form-input py-2 md:py-3"></div>
+                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="max_hr">Max HR</label><input type="number" class="form-input py-2 md:py-3"></div>
                 </div>
 
-                <h4 class="text-[10px] md:text-xs font-bold text-skai-primary uppercase tracking-wider mb-3">Laboratory & Diagnostics</h4>
+                <h4 class="text-[10px] md:text-xs font-bold text-skai-primary uppercase tracking-wider mb-3" data-i18n="lab_diag">Laboratory & Diagnostics</h4>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1">Chest Pain (0-3)</label><input type="number" class="form-input py-2 md:py-3"></div>
-                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1">Cholesterol</label><input type="number" class="form-input py-2 md:py-3"></div>
-                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1">Fasting Sugar > 120</label><input type="number" class="form-input py-2 md:py-3"></div>
-                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1">Resting ECG (0-2)</label><input type="number" class="form-input py-2 md:py-3"></div>
-                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1">Exercise Angina</label><input type="number" class="form-input py-2 md:py-3"></div>
-                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1">ST Depression</label><input type="number" step="0.1" class="form-input py-2 md:py-3"></div>
+                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="chest_pain">Chest Pain (0-3)</label><input type="number" class="form-input py-2 md:py-3"></div>
+                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="cholesterol">Cholesterol</label><input type="number" class="form-input py-2 md:py-3"></div>
+                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="fasting_sugar_120">Fasting Sugar > 120</label><input type="number" class="form-input py-2 md:py-3"></div>
+                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="resting_ecg">Resting ECG (0-2)</label><input type="number" class="form-input py-2 md:py-3"></div>
+                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="exercise_angina">Exercise Angina</label><input type="number" class="form-input py-2 md:py-3"></div>
+                    <div><label class="block text-[10px] md:text-xs text-slate-400 mb-1" data-i18n="st_depression">ST Depression</label><input type="number" step="0.1" class="form-input py-2 md:py-3"></div>
                 </div>
             </div>
 
             <div class="p-4 md:p-5 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
-                <button onclick="closeModal('staff-log-modal')" class="px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-300 hover:text-white transition">Cancel</button>
+                <button onclick="closeModal('staff-log-modal')" class="px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-300 hover:text-white transition" data-i18n="cancel">Cancel</button>
                 <button onclick="submitStaffVitals()" class="bg-skai-verified hover:bg-emerald-400 text-slate-900 px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-900/20 whitespace-nowrap">
-                    <i class="fa-solid fa-file-signature"></i> Sign & Lock Entry
+                    <i class="fa-solid fa-file-signature"></i> <span data-i18n="sign_lock">Sign & Lock Entry</span>
                 </button>
             </div>
         </div>
@@ -526,40 +1129,33 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
             }
         }
 
-        // --- Localization Dictionary ---
-        const i18n = {
-            en: {
-                subtitle: "Silent Killer AI",
-                btn_staff: "Staff Portal",
-                btn_patient: "Patient Tracker",
-                export_report: "Export",
-                critical_queue: "Critical Queue",
-                health: "Health",
-                status_low: "Optimal Health Status",
-                daily_meds: "Daily Medications"
-            },
-            zu: {
-                subtitle: "I-AI ebulalayo ethule",
-                btn_staff: "Ingosi Yabasebenzi",
-                btn_patient: "Umkhondo Wezempilo",
-                export_report: "Landa",
-                critical_queue: "Eziphuthumayo",
-                health: "Ezempilo",
-                status_low: "Isimo Esihle",
-                daily_meds: "Imithi Yansuku Zonke"
-            }
-        };
+        // --- Localization (strings live in translations.js) ---
+        const i18n = window.SKAI_I18N;
 
-        function toggleLanguage(lang) {
+        function t(key) {
+            return (i18n[currentLang] && i18n[currentLang][key]) || i18n.en[key] || key;
+        }
+
+        function toggleLanguage(lang, silent = false) {
+            if (!i18n[lang]) lang = 'en';
             currentLang = lang;
-            document.getElementById('btn-lang-en').className = lang === 'en' ? 'px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-skai-primary text-white shadow-lg' : 'px-4 py-1.5 rounded-full text-xs font-bold transition-all text-slate-400 hover:text-white';
-            document.getElementById('btn-lang-zu').className = lang === 'zu' ? 'px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-skai-primary text-white shadow-lg' : 'px-4 py-1.5 rounded-full text-xs font-bold transition-all text-slate-400 hover:text-white';
-            
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (i18n[lang][key]) el.innerText = i18n[lang][key];
-            });
-            showToast(lang === 'en' ? 'Language changed to English' : 'Ulimi lushintshwe lwaya kusiZulu', 'info');
+            document.documentElement.lang = lang;
+            document.querySelectorAll('.lang-select').forEach(sel => { sel.value = lang; });
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.innerText = t(el.getAttribute('data-i18n')); });
+            document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+            const medText = document.getElementById('med-progress-text');
+            if (medText) medText.innerText = medText.innerText.replace(/^(\d+\/\d+).*$/, `$1 ${t('taken')}`);
+            try { localStorage.setItem('skai-lang', lang); } catch (e) {}
+            if (!silent) showToast(t('lang_changed'), 'info');
+        }
+
+        function initLanguagePicker() {
+            const options = window.SKAI_LANGUAGES.map(l => `<option value="${l.code}">${l.label}</option>`).join('');
+            document.querySelectorAll('.lang-select').forEach(sel => { sel.innerHTML = options; });
+            let saved = 'en';
+            try { saved = localStorage.getItem('skai-lang') || 'en'; } catch (e) {}
+            toggleLanguage(saved, true);
         }
 
         // --- UI Utilities ---
@@ -625,7 +1221,7 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
             const pct = (checked / total) * 100;
             
             document.getElementById('med-progress-bar').style.width = `${pct}%`;
-            document.getElementById('med-progress-text').innerText = `${checked}/${total} Taken`;
+            document.getElementById('med-progress-text').innerText = `${checked}/${total} ${t('taken')}`;
             
             if (currentUser) {
                 try {
@@ -650,6 +1246,12 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
             if(input) { input.value = text; sendMessage('patient'); }
         }
 
+        function languageInstruction() {
+            if (currentLang === 'en') return '';
+            const lang = window.SKAI_LANGUAGES.find(l => l.code === currentLang);
+            return ` Always reply in ${lang.name}. Keep medical terms in English where there is no common equivalent.`;
+        }
+
         async function fetchGeminiResponse(role, userMessage) {
             const systemPrompt = role === 'staff' 
                 ? "Act as SKAI, an advanced clinical AI assistant for doctors monitoring cardiovascular disease. You interpret SHAP values, summarize risk counterfactuals, and provide medical-grade insights. Keep answers highly professional, concise, and formatted beautifully using HTML (e.g. <strong> for emphasis, <ul> for lists). If asked about Thabo Ndlovu, mention his risk is 92.4% driven by high BP and low max HR." 
@@ -657,7 +1259,7 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
 
             const payload = {
                 contents: [{ parts: [{ text: userMessage }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
+                systemInstruction: { parts: [{ text: systemPrompt + languageInstruction() }] },
             };
             
             // Empty API key string - environment will inject it automatically
@@ -948,6 +1550,7 @@ const appId = "1:105207771533:web:e4b7bcf75a16323cac8dc4";
         window.submitPatientVitals = submitPatientVitals;
         window.submitStaffVitals = submitStaffVitals;
         window.toggleLanguage = toggleLanguage;
+        initLanguagePicker();
         window.toggleVoice = toggleVoice;
         window.generateReport = generateReport;
         window.updateMeds = updateMeds;
