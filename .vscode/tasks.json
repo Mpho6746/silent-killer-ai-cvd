@@ -1,0 +1,18 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build SKAI.exe",
+            "type": "shell",
+            "command": "python packaging/build_exe.py",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run SKAI (development)",
+            "type": "shell",
+            "command": "python run_app.py",
+            "problemMatcher": []
+        }
+    ]
+}

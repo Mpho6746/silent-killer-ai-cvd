@@ -287,12 +287,33 @@ const SKAI = (() => {
             <button onclick="SKAI.closeModal()" class="mt-4 w-full bg-slate-800 border border-slate-600 font-bold py-2.5 rounded-xl text-sm">${t('pt_close')}</button>`);
     }
 
+    // Saves a file the page has fetched. Inside the SKAI Android app a web page cannot download
+    // files itself, so the app provides window.SKAIAndroid.saveFile (saves to Downloads and opens it).
+    function saveBlob(blob, filename, open = false) {
+        if (window.SKAIAndroid) {
+            const reader = new FileReader();
+            reader.onload = () => window.SKAIAndroid.saveFile(filename, blob.type || 'application/octet-stream',
+                                                              reader.result.split(',')[1]);
+            reader.readAsDataURL(blob);
+            return;
+        }
+        const url = URL.createObjectURL(blob);
+        if (open) window.open(url, '_blank', 'noopener');
+        else {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+
     // Documents need the clinician's session, so they are fetched with it rather than linked directly
     async function viewDocument(id) {
         const res = await fetch(`${API_BASE}/api/documents/${id}/file`, { headers: { Authorization: `Bearer ${session.token}` } });
         if (res.status === 401) { sessionExpired(); return; }
         if (!res.ok) { toast(t('error_generic'), 'error'); return; }
-        window.open(URL.createObjectURL(await res.blob()), '_blank', 'noopener');
+        saveBlob(await res.blob(), `document_${id}.pdf`, true);
     }
 
     function chart(id, config) {
@@ -755,11 +776,7 @@ const SKAI = (() => {
         const res = await fetch(`${API_BASE}/api/assessments/${assessmentId}/report.pdf`, { headers: authHeader() });
         if (!res.ok) { toast(t('error_generic'), 'error'); return; }
         const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(await res.blob());
-        link.download = name ? name[1] : 'SKAI_report.pdf';
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+        saveBlob(await res.blob(), name ? name[1] : 'SKAI_report.pdf');
     }
 
     // ---------- patient app access (clinic-registered patients) ----------
@@ -984,7 +1001,7 @@ const SKAI = (() => {
     // Shared helpers for patient.js
     const core = {
         state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine,
-        modal, closeModal, resizeImage, patientSession, authHeader, downloadReport,
+        modal, closeModal, resizeImage, patientSession, authHeader, downloadReport, saveBlob,
         onRerender: fn => rerenderHooks.push(fn),
         // Point the shared advisor at a patient's result
         setResult(result) { state.result = result; state.inputs = result ? result.inputs : null; if (result) advisorIntro(); else clearResult(); },

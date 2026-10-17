@@ -221,3 +221,6 @@ __marimo__/
 data/app/
 # Demo document issuer's signing key (scripts/make_demo_documents.py); never commit private keys
 data/demo_issuer_private_key.pem
+
+# Android signing key for the SKAI app (never commit)
+packaging/android/keystore/

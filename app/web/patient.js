@@ -6,7 +6,7 @@
 // no clinic document records: smoking and family history.
 SKAI.patient = (() => {
     const { state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine,
-            modal, closeModal, resizeImage, patientSession, authHeader, downloadReport } = SKAI.core;
+            modal, closeModal, resizeImage, patientSession, authHeader, downloadReport, saveBlob } = SKAI.core;
     const $ = id => document.getElementById(id);
     const enc = encodeURIComponent;
 
@@ -339,11 +339,8 @@ SKAI.patient = (() => {
     async function download(kind) {
         const res = await fetch(`${API_BASE}/api/patients/${enc(pid)}/${kind}`, { headers: authHeader() });
         if (!res.ok) { toast(t('error_generic'), 'error'); return; }
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob([JSON.stringify(await res.json(), null, 2)], { type: 'application/json' }));
-        link.download = kind === 'fhir' ? `SKAI_${pid}_FHIR.json` : `SKAI_my_data_${pid}.json`;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+        saveBlob(new Blob([JSON.stringify(await res.json(), null, 2)], { type: 'application/json' }),
+                 kind === 'fhir' ? `SKAI_${pid}_FHIR.json` : `SKAI_my_data_${pid}.json`);
     }
 
     function planItems(r) {

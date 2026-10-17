@@ -1,7 +1,7 @@
 // Staff tools: SATS waiting room, priority bookings, referrals and the message outbox.
 // Staff-facing text is English-first (see SKAI_STAFF_TEXT in i18n.js).
 SKAI.staff = (() => {
-    const { state, api, t, toast, esc, modal, closeModal, pct, authHeader, API_BASE } = SKAI.core;
+    const { state, api, t, toast, esc, modal, closeModal, pct, authHeader, API_BASE, saveBlob } = SKAI.core;
     const $ = id => document.getElementById(id);
     const COLOUR = {
         red: ['bg-red-600', 'border-red-500', 'text-red-400', 'Red - immediately'],
@@ -306,10 +306,7 @@ SKAI.staff = (() => {
     async function letter(id) {
         const res = await fetch(`${API_BASE}/api/referrals/${id}/letter.pdf`, { headers: authHeader() });
         if (!res.ok) { toast('Could not create the letter', 'error'); return; }
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(await res.blob());
-        link.download = `Referral_${id}.pdf`;
-        link.click();
+        saveBlob(await res.blob(), `Referral_${id}.pdf`);
     }
 
     async function openRefer(patientId, name, risk) {
@@ -389,10 +386,7 @@ SKAI.staff = (() => {
     async function exportFhir(patientId) {
         try {
             const bundle = await api(`/api/patients/${encodeURIComponent(patientId)}/fhir`);
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/fhir+json' }));
-            link.download = `SKAI_${patientId}_FHIR.json`;
-            link.click();
+            saveBlob(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }), `SKAI_${patientId}_FHIR.json`);
             toast(`FHIR bundle: ${bundle.entry.length} resources`, 'success');
         } catch (e) { toast(e.message, 'error'); }
     }

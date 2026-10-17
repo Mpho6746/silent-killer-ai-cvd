@@ -1,0 +1,15 @@
+# Never send these to a cloud build
+data/app/
+*.db
+*.pem
+packaging/android/keystore/
+.git/
+.venv/
+venv/
+dist/
+build/
+notebooks/
+docs/
+tests/
+__pycache__/
+*.pyc
