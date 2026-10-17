@@ -95,9 +95,17 @@ const SKAI = (() => {
         },
     };
 
+    // The patient app has its own session, separate from any clinician signed in on this browser
+    const patientSession = {
+        get token() { try { return localStorage.getItem('skai-patient-token'); } catch (e) { return null; } },
+        set(token) { try { localStorage.setItem('skai-patient-token', token); } catch (e) { /* private mode */ } },
+        clear() { try { localStorage.removeItem('skai-patient-token'); } catch (e) { /* private mode */ } },
+    };
+    const activeToken = () => (state.role === 'patient' ? patientSession.token : session.token);
+    const authHeader = () => (activeToken() ? { Authorization: `Bearer ${activeToken()}` } : {});
+
     async function api(path, body, method) {
-        const headers = body ? { 'Content-Type': 'application/json' } : {};
-        if (session.token) headers.Authorization = `Bearer ${session.token}`;
+        const headers = { ...(body ? { 'Content-Type': 'application/json' } : {}), ...authHeader() };
         const res = await fetch(API_BASE + path, {
             method: method || (body ? 'POST' : 'GET'), headers, body: body ? JSON.stringify(body) : undefined,
         });
@@ -107,6 +115,7 @@ const SKAI = (() => {
             const detail = Array.isArray(err.detail) ? err.detail.map(d => d.msg).join('; ')
                 : (err.detail && err.detail.code) || err.detail;
             if (detail === 'not_signed_in' && state.role === 'clinician') sessionExpired();
+            if (detail === 'patient_not_signed_in' && state.role === 'patient' && SKAI.patient) SKAI.patient.sessionExpired();
             throw new Error(detail || res.statusText);
         }
         return res.json();
@@ -336,6 +345,7 @@ const SKAI = (() => {
     }
 
     async function enter(role, tab = 'assess') {
+        state.role = role;      // set first: it decides which session (clinician or patient) API calls carry
         if (role === 'clinician') {
             if (!session.token) { showLogin(); return; }
             try { state.clinician = await api('/api/auth/me'); } catch (e) { session.clear(); showLogin(); return; }
@@ -645,6 +655,7 @@ const SKAI = (() => {
         const latest = patient.assessments[patient.assessments.length - 1];
         state.patient = patient;
         renderDocs();
+        renderAppAccess();
         $('p-name').value = patient.name;
         $('p-id').value = patient.id;
         if (latest.kind !== state.mode) setMode(latest.kind);
@@ -704,6 +715,7 @@ const SKAI = (() => {
     function newPatient() {
         state.patient = null;
         renderDocs();
+        renderAppAccess();
         $('p-name').value = '';
         $('p-id').value = `P-${Math.floor(1000 + Math.random() * 9000)}`;
         setMode(state.mode);
@@ -725,7 +737,46 @@ const SKAI = (() => {
     }
 
     function downloadPdf() {
-        if (state.assessmentId) window.location.href = `${API_BASE}/api/assessments/${state.assessmentId}/report.pdf`;
+        if (state.assessmentId) downloadReport(state.assessmentId);
+    }
+
+    // Reports are private: fetch with the current session, then save the file
+    async function downloadReport(assessmentId) {
+        const res = await fetch(`${API_BASE}/api/assessments/${assessmentId}/report.pdf`, { headers: authHeader() });
+        if (!res.ok) { toast(t('error_generic'), 'error'); return; }
+        const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(await res.blob());
+        link.download = name ? name[1] : 'SKAI_report.pdf';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+    }
+
+    // ---------- patient app access (clinic-registered patients) ----------
+    function renderAppAccess() {
+        const p = state.patient;
+        $('app-access').classList.toggle('hidden', !p || state.role !== 'clinician');
+        if (!p) return;
+        $('app-access-status').className = `chip ${p.has_account ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`;
+        $('app-access-status').textContent = t(p.has_account ? 'code_has_account' : 'code_no_account');
+    }
+
+    async function issueActivationCode() {
+        if (!state.patient) return;
+        try {
+            const r = await api(`/api/patients/${encodeURIComponent(state.patient.id)}/activation-code`, {});
+            const expires = new Date(r.expires_at).toLocaleString(state.lang === 'en' ? 'en-ZA' : undefined,
+                { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            modal(`
+                <div class="text-center">
+                    <i class="fa-solid fa-mobile-screen-button text-3xl text-skai-secondary mb-2"></i>
+                    <h3 class="text-lg font-extrabold text-white">${t('code_title', { name: esc(state.patient.name) })}</h3>
+                    <p class="text-sm text-slate-300 mt-2">${t('code_text')}</p>
+                    <p class="text-4xl font-black tracking-[0.35em] text-white my-4">${r.code}</p>
+                    <p class="text-xs text-slate-400">${t('patient_id')}: <b>${esc(state.patient.id)}</b> · ${t('code_expires', { date: expires })}</p>
+                    <button onclick="SKAI.closeModal()" class="mt-5 w-full bg-slate-800 border border-slate-600 font-bold py-2.5 rounded-xl text-sm">${t('pt_close')}</button>
+                </div>`);
+        } catch (e) { toast(`${t('error_generic')} (${e.message})`, 'error'); }
     }
 
     // ---------- offline advisor ----------
@@ -907,7 +958,7 @@ const SKAI = (() => {
     // Shared helpers for patient.js
     const core = {
         state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine,
-        modal, closeModal, resizeImage,
+        modal, closeModal, resizeImage, patientSession, authHeader, downloadReport,
         onRerender: fn => rerenderHooks.push(fn),
         // Point the shared advisor at a patient's result
         setResult(result) { state.result = result; state.inputs = result ? result.inputs : null; if (result) advisorIntro(); else clearResult(); },
@@ -916,6 +967,6 @@ const SKAI = (() => {
     return { core, enter, home, showTab, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
              toggleTheme, reviewDocument, filterQueue: renderQueue,
              login, logout, fillLogin, togglePassword, toggleDoctorMenu, doctorPhoto, openPasswordChange,
-             changePassword, openActivity, viewDocument, closeModal,
+             changePassword, openActivity, viewDocument, closeModal, issueActivationCode,
              showModels: () => enter('viewer', 'models') };
 })();

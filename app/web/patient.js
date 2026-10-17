@@ -6,7 +6,7 @@
 // no clinic document records: smoking and family history.
 SKAI.patient = (() => {
     const { state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine,
-            modal, closeModal, resizeImage } = SKAI.core;
+            modal, closeModal, resizeImage, patientSession, authHeader, downloadReport } = SKAI.core;
     const $ = id => document.getElementById(id);
     const enc = encodeURIComponent;
 
@@ -38,9 +38,39 @@ SKAI.patient = (() => {
 
     // ---------- sign in / profile ----------
     async function open() {
-        let saved = null;
-        try { saved = localStorage.getItem('skai-patient'); } catch (e) { /* private mode */ }
-        if (saved && await load(saved)) return;
+        if (patientSession.token) {
+            try {
+                const me = await api('/api/patient-auth/me');
+                if (await load(me.id)) return;
+            } catch (e) { patientSession.clear(); }
+        }
+        showSignIn();
+    }
+
+    function showForm(which) {
+        $('pt-create').classList.toggle('hidden', which !== 'create');
+        $('pt-activate').classList.toggle('hidden', which !== 'activate');
+        $('pt-tab-create').className = `py-2 rounded-xl ${which === 'create' ? 'tab-active' : 'bg-slate-800 border border-slate-700 text-slate-300'}`;
+        $('pt-tab-activate').className = `py-2 rounded-xl ${which === 'activate' ? 'tab-active' : 'bg-slate-800 border border-slate-700 text-slate-300'}`;
+    }
+
+    function formError(id, message) {
+        $(id).textContent = message;
+        $(id).classList.toggle('hidden', !message);
+    }
+
+    const AUTH_ERRORS = { login_failed: 'pt_login_failed', locked: 'login_locked', id_taken: 'pt_id_taken', code_invalid: 'pt_code_invalid' };
+    const authError = e => (AUTH_ERRORS[e.message] ? t(AUTH_ERRORS[e.message]) : `${t('error_generic')} (${e.message})`);
+
+    async function startSession(r) {
+        patientSession.set(r.token);
+        ['pt-login-pass', 'pt-new-pass', 'pt-new-pass2', 'pt-act-pass', 'pt-act-pass2', 'pt-act-code'].forEach(id => { $(id).value = ''; });
+        await load(r.profile.id);
+    }
+
+    function sessionExpired() {
+        patientSession.clear();
+        toast(t('session_expired'), 'warning');
         showSignIn();
     }
 
@@ -53,25 +83,42 @@ SKAI.patient = (() => {
     }
 
     async function signIn() {
-        const id = $('pt-login-id').value.trim();
-        if (id && !(await load(id))) toast(t('pt_not_found'), 'warning');
+        if (!$('pt-login-form').reportValidity()) return;
+        formError('pt-login-error', '');
+        try {
+            await startSession(await api('/api/patient-auth/login',
+                { patient_id: $('pt-login-id').value.trim(), password: $('pt-login-pass').value }));
+        } catch (e) { formError('pt-login-error', authError(e)); }
     }
 
     async function create() {
-        const form = $('pt-create');
-        if (!form.reportValidity()) return;
-        const id = $('pt-new-id').value.trim();
+        if (!$('pt-create').reportValidity()) return;
+        if ($('pt-new-pass').value !== $('pt-new-pass2').value) { formError('pt-create-error', t('pt_password_mismatch')); return; }
+        formError('pt-create-error', '');
         try {
-            await api(`/api/patients/${enc(id)}/profile`, {
-                name: $('pt-new-name').value.trim(), dob: $('pt-new-dob').value, sex: $('pt-new-sex').value,
-            });
+            await startSession(await api('/api/patient-auth/register', {
+                patient_id: $('pt-new-id').value.trim(), name: $('pt-new-name').value.trim(),
+                dob: $('pt-new-dob').value, sex: $('pt-new-sex').value, password: $('pt-new-pass').value,
+            }));
             toast(t('pt_created'), 'success');
-            await load(id);
-        } catch (e) { toast(`${t('error_generic')} (${e.message})`, 'error'); }
+        } catch (e) { formError('pt-create-error', authError(e)); }
     }
 
-    function logout() {
-        try { localStorage.removeItem('skai-patient'); } catch (e) { /* private mode */ }
+    async function activate() {
+        if (!$('pt-activate').reportValidity()) return;
+        if ($('pt-act-pass').value !== $('pt-act-pass2').value) { formError('pt-activate-error', t('pt_password_mismatch')); return; }
+        formError('pt-activate-error', '');
+        try {
+            await startSession(await api('/api/patient-auth/activate', {
+                patient_id: $('pt-act-id').value.trim(), code: $('pt-act-code').value.trim(), password: $('pt-act-pass').value,
+            }));
+            toast(t('pt_activated'), 'success');
+        } catch (e) { formError('pt-activate-error', authError(e)); }
+    }
+
+    async function logout() {
+        try { await api('/api/patient-auth/logout', {}); } catch (e) { /* already ended */ }
+        patientSession.clear();
         $('advice-pop').classList.add('hidden');
         showSignIn();
     }
@@ -79,7 +126,6 @@ SKAI.patient = (() => {
     async function load(id) {
         try { data = await api(`/api/patients/${enc(id)}/dashboard`); } catch (e) { return false; }
         pid = id;
-        try { localStorage.setItem('skai-patient', id); } catch (e) { /* private mode */ }
         $('pt-signin').classList.add('hidden');
         $('pt-dash').classList.remove('hidden');
         $('pt-logout').classList.remove('hidden');
@@ -174,7 +220,7 @@ SKAI.patient = (() => {
                     <div><p class="text-xs font-bold text-slate-300 mb-1">${t('projection_title')}</p><div class="relative h-40"><canvas id="pt-projection-chart"></canvas></div></div>
                     <ul class="space-y-1.5 text-xs">${planItems(r)}</ul>
                     <div class="flex flex-wrap items-center gap-3">
-                        <a href="${API_BASE}/api/assessments/${r.assessment_id}/report.pdf" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-pdf text-red-400 mr-1"></i>${t('download_pdf')}</a>
+                        <button onclick="SKAI.core.downloadReport(${r.assessment_id})" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-pdf text-red-400 mr-1"></i>${t('download_pdf')}</button>
                         <span class="text-[10px] text-slate-500">${t('lifestyle_disclaimer')}</span>
                     </div>
                 </div>
@@ -425,8 +471,11 @@ SKAI.patient = (() => {
 
     async function removeMed(id, name) {
         if (!confirm(t('pt_confirm_remove', { name }))) return;
-        const res = await fetch(`${API_BASE}/api/patients/${enc(pid)}/medications/${id}`, { method: 'DELETE' });
-        if (res.ok) { toast(t('pt_med_removed'), 'info'); await reload(); }
+        try {
+            await api(`/api/patients/${enc(pid)}/medications/${id}`, null, 'DELETE');
+            toast(t('pt_med_removed'), 'info');
+            await reload();
+        } catch (e) { toast(t('error_generic'), 'error'); }
     }
 
     function openAddMed() {
@@ -509,7 +558,7 @@ SKAI.patient = (() => {
         form.append('file', file);
         let doc;
         try {
-            const res = await fetch(`${API_BASE}/api/patients/${enc(pid)}/documents`, { method: 'POST', body: form });
+            const res = await fetch(`${API_BASE}/api/patients/${enc(pid)}/documents`, { method: 'POST', body: form, headers: authHeader() });
             doc = await res.json();
             if (!res.ok) throw new Error(doc.detail || res.statusText);
         } catch (e) {
@@ -586,6 +635,6 @@ SKAI.patient = (() => {
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
     SKAI.core.onRerender(() => { if (data && !$('view-patient').classList.contains('hidden')) render(); });
 
-    return { open, signIn, create, logout, whatIf, pickMood, editCheckin, saveCheckin, toggleDose, removeMed,
+    return { open, signIn, create, activate, showForm, sessionExpired, logout, whatIf, pickMood, editCheckin, saveCheckin, toggleDose, removeMed,
              openAddMed, addTime, saveMed, openUpload, upload, openSelfCheck, runSelfCheck, photo, closeModal };
 })();

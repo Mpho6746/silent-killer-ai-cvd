@@ -1,12 +1,15 @@
 """
 Patient health-tracker endpoints (mounted by app/api.py).
 
+Every endpoint here (except the clinician ones at the bottom) needs the
+patient's own session: "Authorization: Bearer <token>" from app/patient_auth.py.
+
 Patients never type their own vitals. They upload the clinical document they
 were given, and the self-check reads blood pressure, LDL, height and weight
 from their latest accepted document (see app/documents.py). Only things no
 clinic document records - smoking and family history - are self-declared.
 
-    POST   /api/patients/{id}/profile                 create/update profile (name, date of birth, sex)
+    POST   /api/patients/{id}/profile                 update profile (name, date of birth, sex)
     PUT    /api/patients/{id}/photo                   profile picture (small JPEG/PNG data URL)
     POST   /api/patients/{id}/documents               upload a clinical PDF -> verified / pending_review / rejected
     GET    /api/patients/{id}/dashboard               everything the patient home screen needs
@@ -28,6 +31,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.advice import advice_for, bmi, next_checkup
 from app.auth import require_clinician
+from app.patient_auth import require_patient
 from app.documents import MAX_BYTES, read_document, sha256
 from app.storage import today
 
@@ -120,15 +124,13 @@ def _profile_or_404(request, patient_id):
 # ---------- profile ----------
 
 @router.post("/api/patients/{patient_id}/profile")
-def save_profile(patient_id: str, profile: Profile, request: Request):
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", patient_id):
-        raise HTTPException(422, "Patient ID may only contain letters, numbers, - and _")
+def save_profile(patient_id: str, profile: Profile, request: Request, _owner=Depends(require_patient)):
     _store(request).upsert_patient(patient_id, profile.name, profile.sex, dob=profile.dob.isoformat())
     return _store(request).get_profile(patient_id)
 
 
 @router.put("/api/patients/{patient_id}/photo")
-def save_photo(patient_id: str, photo: Photo, request: Request):
+def save_photo(patient_id: str, photo: Photo, request: Request, _owner=Depends(require_patient)):
     _profile_or_404(request, patient_id)
     _store(request).set_photo(patient_id, photo.data_url)
     return {"ok": True}
@@ -137,7 +139,7 @@ def save_photo(patient_id: str, photo: Photo, request: Request):
 # ---------- documents ----------
 
 @router.post("/api/patients/{patient_id}/documents")
-async def upload_document(patient_id: str, request: Request, file: UploadFile = File(...)):
+async def upload_document(patient_id: str, request: Request, file: UploadFile = File(...), _owner=Depends(require_patient)):
     profile = _profile_or_404(request, patient_id)
     content = await file.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
@@ -186,7 +188,7 @@ def lifestyle_inputs(profile, document, answers):
 
 
 @router.post("/api/patients/{patient_id}/self-check")
-def self_check(patient_id: str, answers: SelfCheck, request: Request):
+def self_check(patient_id: str, answers: SelfCheck, request: Request, _owner=Depends(require_patient)):
     store = _store(request)
     profile = _profile_or_404(request, patient_id)
     if not profile.get("dob"):
@@ -212,7 +214,7 @@ def _source(document):
 # ---------- dashboard ----------
 
 @router.get("/api/patients/{patient_id}/dashboard")
-def dashboard(patient_id: str, request: Request):
+def dashboard(patient_id: str, request: Request, _owner=Depends(require_patient)):
     store = _store(request)
     profile = _profile_or_404(request, patient_id)
     document = store.usable_vitals(patient_id)
@@ -261,20 +263,20 @@ def dashboard(patient_id: str, request: Request):
 # ---------- medication planner ----------
 
 @router.post("/api/patients/{patient_id}/medications")
-def add_medication(patient_id: str, med: Medication, request: Request):
+def add_medication(patient_id: str, med: Medication, request: Request, _owner=Depends(require_patient)):
     _profile_or_404(request, patient_id)
     _store(request).add_medication(patient_id, med.name, med.dose, med.times)
     return _store(request).medication_plan(patient_id)
 
 
 @router.delete("/api/patients/{patient_id}/medications/{medication_id}")
-def remove_medication(patient_id: str, medication_id: int, request: Request):
+def remove_medication(patient_id: str, medication_id: int, request: Request, _owner=Depends(require_patient)):
     _store(request).remove_medication(patient_id, medication_id)
     return _store(request).medication_plan(patient_id)
 
 
 @router.post("/api/patients/{patient_id}/medications/{medication_id}/doses")
-def log_dose(patient_id: str, medication_id: int, dose: Dose, request: Request):
+def log_dose(patient_id: str, medication_id: int, dose: Dose, request: Request, _owner=Depends(require_patient)):
     day = (dose.day or date.today()).isoformat()
     if not _store(request).log_dose(patient_id, medication_id, day, dose.slot, dose.taken):
         raise HTTPException(404, "Medication not found")
@@ -284,7 +286,7 @@ def log_dose(patient_id: str, medication_id: int, dose: Dose, request: Request):
 # ---------- daily check-in ----------
 
 @router.post("/api/patients/{patient_id}/checkins")
-def check_in(patient_id: str, checkin: CheckIn, request: Request):
+def check_in(patient_id: str, checkin: CheckIn, request: Request, _owner=Depends(require_patient)):
     _profile_or_404(request, patient_id)
     _store(request).save_checkin(patient_id, today(), checkin.mood, checkin.activity_minutes,
                                  checkin.water_glasses, list(checkin.symptoms))

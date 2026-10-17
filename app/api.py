@@ -36,6 +36,8 @@ from app import demo_data
 from app.auth import optional_clinician, require_clinician, seed_clinicians
 from app.auth import router as auth_router
 from app.patient_api import router as patient_router
+from app.patient_auth import router as patient_auth_router
+from app.patient_auth import seed_patient_accounts, session_patient_id
 from app.report import build_pdf
 from app.risk_models import ClinicalModel, LifestyleModel
 from app.storage import DEFAULT_DB, Store
@@ -116,6 +118,8 @@ async def lifespan(app):
         seed_clinicians(app.state.store)       # also adds accounts to databases created before sign-in existed
     if app.state.store.is_empty() and demo:
         demo_data.seed(app.state.store, app.state.clinical, app.state.lifestyle)
+    if demo:
+        seed_patient_accounts(app.state.store)
     app.state.model_info = _model_info(app.state.clinical)
     yield
 
@@ -179,11 +183,14 @@ def patient(patient_id: str, clinician=Depends(require_clinician)):
 
 
 @app.get("/api/assessments/{assessment_id}/report.pdf")
-def report(assessment_id: int):
+def report(assessment_id: int, clinician=Depends(optional_clinician), patient_id=Depends(session_patient_id)):
     store = app.state.store
     assessment = store.get_assessment(assessment_id)
     if not assessment:
         raise HTTPException(404, "Assessment not found")
+    # Medical reports: a signed-in clinician, or the patient the report belongs to
+    if not clinician and patient_id != assessment["patient_id"]:
+        raise HTTPException(401 if not patient_id else 403, detail={"code": "not_your_record"})
     patient = store.get_patient(assessment["patient_id"])
     model = app.state.clinical if assessment["kind"] == "clinical" else app.state.lifestyle
     # Re-running the model on the stored inputs reproduces the original result exactly
@@ -200,6 +207,7 @@ def model_info():
 
 app.include_router(patient_router)
 app.include_router(auth_router)
+app.include_router(patient_auth_router)
 
 
 # The web app (index.html, app.js, i18n.js) at the site root. Mounted last so

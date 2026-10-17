@@ -172,6 +172,10 @@
                     <label class="flex items-center gap-2 mt-3 text-xs text-slate-300 cursor-pointer">
                         <input id="p-save" type="checkbox" class="accent-sky-500" checked> <span data-i18n="save_record">Save to patient record</span>
                     </label>
+                    <div id="app-access" class="hidden mt-3 pt-3 border-t border-slate-700/60 flex flex-wrap items-center gap-2">
+                        <span id="app-access-status" class="chip"></span>
+                        <button onclick="SKAI.issueActivationCode()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-mobile-screen-button text-skai-secondary mr-1"></i><span data-i18n="code_btn">Give app access code</span></button>
+                    </div>
                 </div>
 
                 <div id="docs-card" class="hidden glass-card rounded-2xl p-5">
@@ -283,22 +287,42 @@
             <h1 class="text-2xl font-extrabold text-white" data-i18n="pt_welcome_title">Welcome to SKAI Health</h1>
             <p class="text-sm text-slate-300 mt-2" data-i18n="pt_welcome_text">Your personal heart-health companion. Track your verified results, medication and daily habits in one place.</p>
 
-            <form class="mt-6 flex gap-2" onsubmit="event.preventDefault(); SKAI.patient.signIn();">
-                <input id="pt-login-id" class="field" maxlength="40" data-i18n-placeholder="pt_enter_id" placeholder="Your patient ID" required>
-                <button class="on-accent bg-skai-secondary hover:bg-teal-500 text-white font-bold px-4 rounded-xl whitespace-nowrap" data-i18n="pt_open">Open</button>
+            <form id="pt-login-form" class="mt-6 space-y-2 text-left" onsubmit="event.preventDefault(); SKAI.patient.signIn();">
+                <input id="pt-login-id" class="field" maxlength="40" autocomplete="username" data-i18n-placeholder="pt_enter_id" placeholder="Your patient ID" required>
+                <input id="pt-login-pass" type="password" class="field" maxlength="200" autocomplete="current-password" data-i18n-placeholder="login_pass" placeholder="Password" required>
+                <p id="pt-login-error" class="hidden text-xs font-bold text-red-400"></p>
+                <button class="on-accent w-full bg-skai-secondary hover:bg-teal-500 text-white font-bold py-3 rounded-xl"><i class="fa-solid fa-right-to-bracket mr-2"></i><span data-i18n="login_btn">Sign in</span></button>
             </form>
-            <p class="text-[11px] text-slate-500 mt-2" data-i18n="pt_demo_hint">Demo: try DEMO-101 (John) or DEMO-102 (Nomvula).</p>
+            <p class="text-[11px] text-slate-500 mt-2"><span data-i18n="pt_demo_hint">Demo: try DEMO-101 (John) or DEMO-102 (Nomvula).</span> <span data-i18n="login_demo_pw">Demo password:</span> <code class="text-slate-300">SkaiPatient2026!</code></p>
 
             <div class="flex items-center gap-3 my-6 text-xs text-slate-500"><div class="flex-1 border-t border-slate-700"></div><span data-i18n="pt_or">or</span><div class="flex-1 border-t border-slate-700"></div></div>
 
+            <div class="grid grid-cols-2 gap-2 mb-4 text-xs font-bold">
+                <button type="button" id="pt-tab-create" onclick="SKAI.patient.showForm('create')" class="py-2 rounded-xl tab-active" data-i18n="pt_create_title">Create my profile</button>
+                <button type="button" id="pt-tab-activate" onclick="SKAI.patient.showForm('activate')" class="py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300" data-i18n="pt_activate_tab">I have a clinic code</button>
+            </div>
+
             <form id="pt-create" class="text-left grid grid-cols-2 gap-3" onsubmit="event.preventDefault(); SKAI.patient.create();">
-                <h3 class="col-span-2 text-sm font-bold text-white" data-i18n="pt_create_title">Create my profile</h3>
                 <div class="col-span-2"><label class="field-label" for="pt-new-name" data-i18n="patient_name">Full name</label><input id="pt-new-name" class="field" maxlength="80" required></div>
                 <div><label class="field-label" for="pt-new-id" data-i18n="patient_id">Patient ID</label><input id="pt-new-id" class="field" maxlength="40" pattern="[A-Za-z0-9_\-]+" required></div>
-                <div><label class="field-label" for="pt-new-dob" data-i18n="pt_dob">Date of birth</label><input id="pt-new-dob" type="date" class="field" required></div>
+                <div><label class="field-label" for="pt-new-dob" data-i18n="pt_dob">Date of birth</label><input id="pt-new-dob" type="date" class="field" min="1900-01-01" required></div>
                 <div class="col-span-2"><label class="field-label" for="pt-new-sex" data-i18n="f_sex">Sex</label>
                     <select id="pt-new-sex" class="field"><option value="F" data-i18n="female">Female</option><option value="M" data-i18n="male">Male</option></select></div>
+                <div><label class="field-label" for="pt-new-pass" data-i18n="pt_new_password">Choose a password</label><input id="pt-new-pass" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required></div>
+                <div><label class="field-label" for="pt-new-pass2" data-i18n="pt_confirm_password">Confirm password</label><input id="pt-new-pass2" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required></div>
+                <p class="col-span-2 text-[11px] text-slate-500" data-i18n="pt_password_rule">At least 8 characters. Never share it.</p>
+                <p id="pt-create-error" class="col-span-2 hidden text-xs font-bold text-red-400"></p>
                 <button class="on-accent col-span-2 bg-gradient-to-r from-skai-secondary to-emerald-500 text-white font-bold py-3 rounded-xl" data-i18n="pt_create">Create profile</button>
+            </form>
+
+            <form id="pt-activate" class="hidden text-left grid grid-cols-2 gap-3" onsubmit="event.preventDefault(); SKAI.patient.activate();">
+                <p class="col-span-2 text-xs text-slate-300" data-i18n="pt_activate_text">Registered at a clinic? Ask the clinic for a 6-digit code to set up your account.</p>
+                <div><label class="field-label" for="pt-act-id" data-i18n="patient_id">Patient ID</label><input id="pt-act-id" class="field" maxlength="40" required></div>
+                <div><label class="field-label" for="pt-act-code" data-i18n="pt_code">6-digit code</label><input id="pt-act-code" class="field tracking-[0.3em] font-bold" inputmode="numeric" pattern="\d{6}" maxlength="6" required></div>
+                <div><label class="field-label" for="pt-act-pass" data-i18n="pt_new_password">Choose a password</label><input id="pt-act-pass" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required></div>
+                <div><label class="field-label" for="pt-act-pass2" data-i18n="pt_confirm_password">Confirm password</label><input id="pt-act-pass2" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required></div>
+                <p id="pt-activate-error" class="col-span-2 hidden text-xs font-bold text-red-400"></p>
+                <button class="on-accent col-span-2 bg-gradient-to-r from-skai-secondary to-emerald-500 text-white font-bold py-3 rounded-xl" data-i18n="pt_activate_btn">Activate my account</button>
             </form>
         </div>
     </div>

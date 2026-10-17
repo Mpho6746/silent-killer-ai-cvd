@@ -95,6 +95,19 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at    TEXT NOT NULL,
     expires_at    TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS patient_sessions (
+    token_hash    TEXT PRIMARY KEY,           -- SHA-256 of the token; the token itself is never stored
+    patient_id    TEXT NOT NULL REFERENCES patients(id),
+    created_at    TEXT NOT NULL,
+    expires_at    TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS activation_codes (
+    patient_id    TEXT PRIMARY KEY REFERENCES patients(id),   -- one live code per patient
+    code_hash     TEXT NOT NULL,
+    created_by    TEXT NOT NULL REFERENCES clinicians(id),
+    expires_at    TEXT NOT NULL,
+    attempts      INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS audit_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     clinician_id  TEXT NOT NULL REFERENCES clinicians(id),
@@ -106,7 +119,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 # Columns added after the first release; created on older databases at startup
 MIGRATIONS = {
-    "patients": {"dob": "TEXT", "photo": "TEXT"},
+    "patients": {"dob": "TEXT", "photo": "TEXT",
+                 "password_hash": "TEXT", "failed_attempts": "INTEGER NOT NULL DEFAULT 0", "locked_until": "TEXT"},
     "assessments": {"created_by": "TEXT"},     # clinician who saved it (NULL = patient self-check)
     "documents": {"reviewed_by": "TEXT"},       # clinician who approved/rejected it
 }
@@ -154,9 +168,65 @@ class Store:
         self.conn.execute("UPDATE patients SET photo = ? WHERE id = ?", (data_url, patient_id))
         self.conn.commit()
 
+    # Sign-in fields never leave the store through profile lookups
+    PRIVATE = ("password_hash", "failed_attempts", "locked_until")
+
     def get_profile(self, patient_id):
         row = self.conn.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+        if not row:
+            return None
+        profile = {k: v for k, v in dict(row).items() if k not in self.PRIVATE}
+        profile["has_account"] = row["password_hash"] is not None
+        return profile
+
+    def get_patient_credentials(self, patient_id):
+        row = self.conn.execute("SELECT id, name, password_hash, failed_attempts, locked_until FROM patients WHERE id = ?",
+                                (patient_id,)).fetchone()
         return dict(row) if row else None
+
+    def update_patient_credentials(self, patient_id, **fields):
+        assert set(fields) <= {"password_hash", "failed_attempts", "locked_until"}
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        self.conn.execute(f"UPDATE patients SET {sets} WHERE id = ?", (*fields.values(), patient_id))
+        self.conn.commit()
+
+    def create_patient_session(self, token_hash, patient_id, expires_at):
+        self.conn.execute("INSERT INTO patient_sessions (token_hash, patient_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+                          (token_hash, patient_id, _now(), expires_at))
+        self.conn.commit()
+
+    def session_patient(self, token_hash, now_iso):
+        row = self.conn.execute("SELECT patient_id FROM patient_sessions WHERE token_hash = ? AND expires_at > ?",
+                                (token_hash, now_iso)).fetchone()
+        return row["patient_id"] if row else None
+
+    def delete_patient_session(self, token_hash):
+        self.conn.execute("DELETE FROM patient_sessions WHERE token_hash = ?", (token_hash,))
+        self.conn.commit()
+
+    def delete_patient_sessions(self, patient_id):
+        self.conn.execute("DELETE FROM patient_sessions WHERE patient_id = ?", (patient_id,))
+        self.conn.commit()
+
+    def set_activation_code(self, patient_id, code_hash, created_by, expires_at):
+        self.conn.execute("""INSERT INTO activation_codes (patient_id, code_hash, created_by, expires_at, attempts)
+                             VALUES (?, ?, ?, ?, 0)
+                             ON CONFLICT(patient_id) DO UPDATE SET code_hash = excluded.code_hash,
+                                 created_by = excluded.created_by, expires_at = excluded.expires_at, attempts = 0""",
+                          (patient_id, code_hash, created_by, expires_at))
+        self.conn.commit()
+
+    def get_activation_code(self, patient_id):
+        row = self.conn.execute("SELECT * FROM activation_codes WHERE patient_id = ?", (patient_id,)).fetchone()
+        return dict(row) if row else None
+
+    def bump_activation_attempts(self, patient_id):
+        self.conn.execute("UPDATE activation_codes SET attempts = attempts + 1 WHERE patient_id = ?", (patient_id,))
+        self.conn.commit()
+
+    def delete_activation_code(self, patient_id):
+        self.conn.execute("DELETE FROM activation_codes WHERE patient_id = ?", (patient_id,))
+        self.conn.commit()
 
     def get_patient(self, patient_id):
         profile = self.get_profile(patient_id)

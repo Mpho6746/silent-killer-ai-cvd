@@ -115,7 +115,8 @@ A web app (FastAPI backend + HTML/JS front end) built on the trained models. Eve
 - **Risk over time** chart and a **downloadable PDF report** for every saved assessment.
 - **Document review**: patients whose uploaded results are not digitally signed are flagged *Verify document*. The clinician opens the original PDF and approves or rejects it.
 
-**Patient health tracker (SKAI Health)**: a personal profile with photo and a welcoming dashboard.
+**Patient health tracker (SKAI Health)** (sign-in required, [app/patient_auth.py](app/patient_auth.py)): a personal profile with photo and a welcoming dashboard.
+- **Patient accounts**: new patients register with a password. Patients a clinic already registered get a **6-digit activation code** from a signed-in clinician (valid 24 hours, 5 tries, logged in the activity log) and choose their own password. A patient session opens only that patient's own record and reports; passwords, session tokens and codes are stored as hashes only. Demo patients: `DEMO-101` and `DEMO-102`, password `SkaiPatient2026!`.
 - **Trusted vitals only** (see below): patients upload the PDF from their clinic, pharmacy clinic or lab. They never type blood pressure, cholesterol or weight.
 - **Heart-risk check** with the South African Heart Disease model, a **10-year projection** (risk if nothing changes vs. with each change) and "explore" sliders that never change the record.
 - **Personal health tips** based on the patient's own vitals, risk, medication adherence and check-ins, shown as pop-ups. Urgent symptoms open an emergency screen (10177 / 112).
@@ -158,6 +159,8 @@ Only smoking and family history are self-declared, because no clinic document re
 | `POST /api/documents/{id}/review` | clinician approves or rejects a pending document |
 | `POST /api/auth/login`, `/logout`, `GET /api/auth/me` | clinician sign-in (returns a bearer token) |
 | `GET /api/audit` | activity log: who did what, when |
+| `POST /api/patient-auth/register`, `/login`, `/activate`, `/logout` | patient accounts (returns a bearer token) |
+| `POST /api/patients/{id}/activation-code` | clinician issues a one-time app access code |
 | `PUT /api/clinicians/me/photo`, `/password` | doctor profile picture and password |
 | medications, doses, check-ins, profile, photo | see [app/patient_api.py](app/patient_api.py) |
 
@@ -187,7 +190,7 @@ Or open them in Jupyter/VS Code and run all cells in order.
 python run_app.py
 ```
 
-This opens http://127.0.0.1:8000. Interactive API docs are at `/docs`. On first run the app creates a local patient database (`data/app/skai.db`, not committed) and fills it with clearly-labelled `DEMO-` patients. Delete that file to start fresh. To try the patient side, open *Patient self-check* and use `DEMO-101`, or create a profile named John Doe and upload `sample_documents/john_doe_verified.pdf`.
+This opens http://127.0.0.1:8000. Interactive API docs are at `/docs`. On first run the app creates a local patient database (`data/app/skai.db`, not committed) and fills it with clearly-labelled `DEMO-` patients. Delete that file to start fresh. To try the patient side, open *Patient self-check* and sign in as `DEMO-101` with `SkaiPatient2026!`, or create a profile named John Doe and upload `sample_documents/john_doe_verified.pdf`.
 
 **Run the tests:**
 
@@ -223,6 +226,7 @@ app/
   storage.py                  SQLite patients/assessments + triage queue and alerts
   report.py                   PDF report
   auth.py                     clinician accounts, sessions, audit log, demo doctors
+  patient_auth.py             patient accounts, sessions, clinic activation codes
   patient_api.py              patient health-tracker endpoints
   documents.py                reads and verifies uploaded clinical PDFs
   trusted_issuers.json        public keys of issuers whose signatures are trusted
