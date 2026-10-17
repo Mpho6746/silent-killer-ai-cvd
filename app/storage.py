@@ -108,6 +108,77 @@ CREATE TABLE IF NOT EXISTS activation_codes (
     expires_at    TEXT NOT NULL,
     attempts      INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS facilities (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    kind        TEXT NOT NULL CHECK (kind IN ('clinic', 'hospital')),
+    district    TEXT NOT NULL
+);
+-- Arrival triage using the South African Triage Scale (see app/triage.py)
+CREATE TABLE IF NOT EXISTS triage_visits (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    facility_id     TEXT NOT NULL REFERENCES facilities(id),
+    patient_id      TEXT REFERENCES patients(id),      -- NULL for an unregistered walk-in
+    name            TEXT NOT NULL,
+    arrived_at      TEXT NOT NULL,
+    vitals          TEXT NOT NULL,                     -- JSON: TEWS inputs
+    discriminators  TEXT NOT NULL,                     -- JSON list
+    tews            INTEGER NOT NULL,
+    colour          TEXT NOT NULL CHECK (colour IN ('red', 'orange', 'yellow', 'green')),
+    cardiac_flag    INTEGER NOT NULL DEFAULT 0,        -- SKAI "silent risk" flag within the colour
+    status          TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'in_consult', 'done', 'left')),
+    seen_at         TEXT,
+    created_by      TEXT NOT NULL REFERENCES clinicians(id)
+);
+CREATE TABLE IF NOT EXISTS appointments (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id  TEXT NOT NULL REFERENCES patients(id),
+    facility_id TEXT NOT NULL REFERENCES facilities(id),
+    starts_at   TEXT NOT NULL,
+    reason      TEXT NOT NULL,
+    priority    TEXT NOT NULL CHECK (priority IN ('urgent', 'soon', 'routine')),
+    status      TEXT NOT NULL DEFAULT 'booked' CHECK (status IN ('booked', 'attended', 'missed', 'cancelled')),
+    created_by  TEXT NOT NULL REFERENCES clinicians(id),
+    created_at  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS referrals (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id      TEXT NOT NULL REFERENCES patients(id),
+    from_facility   TEXT NOT NULL REFERENCES facilities(id),
+    to_facility     TEXT NOT NULL REFERENCES facilities(id),
+    reason          TEXT NOT NULL,
+    urgency         TEXT NOT NULL CHECK (urgency IN ('emergency', 'urgent', 'routine')),
+    status          TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'arrived', 'seen', 'closed', 'cancelled')),
+    due_by          TEXT NOT NULL,
+    notes           TEXT,
+    created_by      TEXT NOT NULL REFERENCES clinicians(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    updated_by      TEXT REFERENCES clinicians(id)
+);
+-- Outgoing SMS / WhatsApp / USSD messages (see app/messaging.py)
+CREATE TABLE IF NOT EXISTS messages (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id    TEXT NOT NULL REFERENCES patients(id),
+    channel       TEXT NOT NULL CHECK (channel IN ('sms', 'whatsapp')),
+    to_number     TEXT NOT NULL,
+    kind          TEXT NOT NULL,
+    body          TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent', 'failed', 'skipped')),
+    scheduled_for TEXT NOT NULL,
+    created_at    TEXT NOT NULL,
+    sent_at       TEXT,
+    provider_ref  TEXT,
+    UNIQUE (patient_id, kind, scheduled_for)
+);
+-- Confirmed outcomes for the pilot study (see app/monitoring.py)
+CREATE TABLE IF NOT EXISTS outcomes (
+    patient_id   TEXT PRIMARY KEY REFERENCES patients(id),
+    has_cvd      INTEGER NOT NULL,                     -- confirmed by a clinician
+    source       TEXT NOT NULL,                        -- e.g. echo, angiogram, clinical diagnosis
+    recorded_by  TEXT NOT NULL REFERENCES clinicians(id),
+    recorded_at  TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS audit_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     clinician_id  TEXT NOT NULL REFERENCES clinicians(id),
@@ -120,7 +191,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
 # Columns added after the first release; created on older databases at startup
 MIGRATIONS = {
     "patients": {"dob": "TEXT", "photo": "TEXT",
-                 "password_hash": "TEXT", "failed_attempts": "INTEGER NOT NULL DEFAULT 0", "locked_until": "TEXT"},
+                 "password_hash": "TEXT", "failed_attempts": "INTEGER NOT NULL DEFAULT 0", "locked_until": "TEXT",
+                 "facility_id": "TEXT", "phone": "TEXT", "sa_id": "TEXT", "sms_opt_in": "INTEGER NOT NULL DEFAULT 0",
+                 "consent_at": "TEXT", "consent_version": "TEXT"},
+    "clinicians": {"role": "TEXT NOT NULL DEFAULT 'doctor'", "facility_id": "TEXT"},
     "assessments": {"created_by": "TEXT"},     # clinician who saved it (NULL = patient self-check)
     "documents": {"reviewed_by": "TEXT"},       # clinician who approved/rejected it
 }
@@ -300,7 +374,22 @@ class Store:
             return None
         newest = lambda d: (d["document_date"] or "", d["uploaded_at"])
         trusted = [d for d in docs if d["status"] in ("verified", "approved")]
-        return max(trusted or docs, key=newest)
+        pool = trusted or docs
+        # The base is the newest document with a blood pressure (the score cannot run without
+        # one); a lab report with only cholesterol or glucose adds to it rather than replacing it.
+        with_bp = [d for d in pool if "sbp" in d["vitals"]]
+        base = max(with_bp or pool, key=newest)
+        merged, sources = {}, []
+        for d in sorted(pool, key=newest):            # oldest first, so newer values win...
+            if d is base or newest(d) > newest(base):
+                merged.update(d["vitals"])
+                sources.append(d["id"])
+            else:                                     # ...and older ones only fill gaps
+                gaps = {k: v for k, v in d["vitals"].items() if k not in merged and k not in base["vitals"]}
+                if gaps:
+                    merged.update(gaps)
+                    sources.append(d["id"])
+        return {**base, "vitals": merged, "source_documents": sources}
 
     # ---------- medications ----------
     def add_medication(self, patient_id, name, dose, times, created_at=None):

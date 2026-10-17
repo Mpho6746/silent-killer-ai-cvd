@@ -21,7 +21,7 @@ SMOKER = dict(age=45, sbp=150, cigarettes_per_day=10, years_smoked=2, family_his
 def client():
     with TestClient(app) as c:
         # Clinician endpoints need a signed-in clinician; patient endpoints ignore the header
-        token = c.post("/api/auth/login", json={"username": "samuel.olajide", "password": DEMO_PASSWORD}).json()["token"]
+        token = c.post("/api/auth/login", json={"username": "sfiso.kekana", "password": DEMO_PASSWORD}).json()["token"]
         c.headers["Authorization"] = f"Bearer {token}"
         yield c
 
@@ -87,7 +87,8 @@ def test_save_history_queue_and_pdf(client):
 
 
 def test_demo_patients_seeded_and_prioritised(client):
-    queue = client.get("/api/patients").json()
+    manager = client.post("/api/auth/login", json={"username": "manager.district", "password": DEMO_PASSWORD}).json()["token"]
+    queue = client.get("/api/patients", headers={"Authorization": f"Bearer {manager}"}).json()   # district: every facility
     demo = [q for q in queue if q["id"].startswith("DEMO-")]
     assert len(demo) == 7
     flagged = [q for q in queue if q["flags"]]

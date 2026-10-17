@@ -107,7 +107,7 @@ A web app (FastAPI backend + HTML/JS front end) built on the trained models. Eve
 **Clinician dashboard** (sign-in required)
 - **Clinician accounts** ([app/auth.py](app/auth.py)): each doctor signs in, and every clinical action (opening a patient, saving an assessment, approving a document) is recorded under their name in an **activity log**. Assessments and the triage queue show which doctor last assessed each patient. Doctors can add a **profile picture** and change their password.
   - Passwords are stored only as salted PBKDF2-SHA256 hashes; the database keeps a hash of each session token, not the token. Sessions last 8 hours, and 5 wrong passwords lock an account for 5 minutes.
-  - Demo accounts: `samuel.olajide`, `sfiso.kekana`, `mpho.mutengwe`, `tshiamo.bokaba`, `kamogelo`, `neontle`, all with the password `SkaiDemo2026!`.
+  - Demo accounts: see *Using SKAI in a clinic* below (doctors, nurses and a district manager, password `SkaiDemo2026!`).
 - **Triage queue**: every patient's latest risk, sorted so the most urgent come first, with proactive alerts: *High risk*, *Rising* (risk up 10+ points since the last assessment) and *Follow-up due* (high-risk patient not re-assessed in 30 days).
 - **Clinical assessment** with the tuned Random Forest: risk %, risk tier and a per-patient SHAP chart of what drives the result.
 - **What-if sliders** (BP, cholesterol, max heart rate, ST depression) that re-run the model live.
@@ -139,8 +139,6 @@ Only smoking and family history are self-declared, because no clinic document re
 
 **For everyone**
 - **Light and dark theme** (follows the device setting, switchable anywhere).
-
-**For everyone**
 - **SKAI advisor**: an offline assistant that explains *why* the risk is what it is, *how to lower it* and *when to see a doctor*, using the real model output.
 - **Model & bias page**: held-out performance of both models and the bias-audit charts from notebook 06.
 - **11 languages**: all of South Africa's official spoken languages (English, Afrikaans and the nine indigenous languages). Translations need native-speaker review before use with real patients.
@@ -163,6 +161,45 @@ Only smoking and family history are self-declared, because no clinic document re
 | `POST /api/patients/{id}/activation-code` | clinician issues a one-time app access code |
 | `PUT /api/clinicians/me/photo`, `/password` | doctor profile picture and password |
 | medications, doses, check-ins, profile, photo | see [app/patient_api.py](app/patient_api.py) |
+| `POST /api/triage/preview`, `POST /api/triage`, `GET /api/triage/queue` | SATS colour, record an arrival, waiting room |
+| `GET /api/bookings/priority`, `POST /api/appointments` | who needs booking first; book |
+| `POST /api/referrals`, `GET /api/referrals`, `GET /api/referrals/{id}/letter.pdf` | referrals and letters |
+| `GET /api/messages`, `POST /api/messages/dispatch` | reminders outbox |
+| `GET /api/patients/{id}/fhir`, `POST /api/fhir/lab-results` | HL7 FHIR export and lab import |
+| `PUT /api/patients/{id}/contact`, `GET /api/patients/{id}/export` | phone, SMS opt-in, SA ID; download my data |
+| `POST /api/patients/{id}/outcome`, `GET /api/monitoring`, `GET /api/district` | outcomes, live accuracy and bias, facility overview |
+
+### Using SKAI in a clinic
+
+SKAI does not replace triage. The **South African Triage Scale (SATS)** decides urgency; SKAI's cardiac risk only orders patients *within* a SATS colour, and its main job is getting high-risk patients **booked and followed up** before they become emergencies.
+
+| Feature | What it does | Code |
+|---|---|---|
+| **Roles and facilities** | Nurses, doctors, facility managers and a district manager, each at a facility. Staff see only their facility's patients, plus patients referred to them while the referral is open. Only doctors approve documents and record outcomes; managers see dashboards but cannot assess. | [app/facilities.py](app/facilities.py) |
+| **SATS waiting room** | Arrival vitals give the adult TEWS score and colour (red/orange/yellow/green, with discriminators such as chest pain). The queue shows waiting time against the SATS target and flags overdue patients. Within a colour, a patient SKAI rates high or critical moves forward. | [app/triage.py](app/triage.py) |
+| **Clinic BP monitor** | *Read from BP monitor* uses Web Bluetooth (standard Blood Pressure service 0x1810) to fill BP and pulse straight from the cuff, and marks the reading as device-measured. Without Bluetooth (or no monitor) a clearly labelled simulator is used. | [app/web/staff.js](app/web/staff.js) |
+| **Validated score** | Every patient result also shows the published **Framingham 2008** 10-year CVD score (lab or BMI version), reproduced against the paper's worked examples. SKAI's own models are research models; Framingham is the validated anchor. | [app/scores.py](app/scores.py) |
+| **Priority booking** | High and critical patients without an appointment, with a *book by* date (critical within 7 days, high within 14). Appointments are marked attended or missed. | [app/care.py](app/care.py) |
+| **Closed-loop referrals** | Referral with urgency and due date, a PDF referral letter, arrival confirmed by the receiving facility, and an overdue flag in the referring clinic's queue until the loop is closed. | [app/care.py](app/care.py) |
+| **SMS / WhatsApp reminders** | Appointment confirmation and day-before reminder, referral instructions and medication doses, only for patients who opted in. The outbox shows every message; demo mode records them without texting anyone, and a real SMS gateway plugs in via `SKAI_SMS_PROVIDER`. | [app/messaging.py](app/messaging.py) |
+| **HL7 FHIR** | Export a patient as a FHIR R4 Bundle (Patient, LOINC-coded Observations, RiskAssessments). Import lab results as a FHIR Bundle: a lab system with its integration key (`X-Integration-Key`, from `SKAI_LAB_KEY`) gives *verified* values; a clinician importing a file gives *approved* values. Lab values add to the clinic's BP document instead of replacing it. | [app/interop.py](app/interop.py) |
+| **SA ID numbers** | Luhn check digit, and date of birth and sex compared with the record. | [app/interop.py](app/interop.py) |
+| **POPIA** | Patients agree to a privacy notice when they sign up or activate (version and time recorded), can download all their data including which staff opened their record, and choose SMS reminders themselves. | [app/privacy.py](app/privacy.py) |
+| **Pilot monitoring** | Doctors record confirmed outcomes (echo, angiogram, ECG...). The Monitoring tab compares them with SKAI's predictions: recall, false alarms and calibration, overall and by sex, age and model, with plain-language alerts. Groups with fewer than 30 outcomes are shown but not judged. Also a per-facility (district) overview and the governance summary. | [app/monitoring.py](app/monitoring.py) |
+
+**Demo staff accounts** (password `SkaiDemo2026!`):
+
+| Username | Role | Facility |
+|---|---|---|
+| `nurse.thandi` | Professional nurse | Kopanong Community Clinic |
+| `sfiso.kekana`, `mpho.mutengwe` | Doctor | Kopanong Community Clinic |
+| `nurse.lindiwe` | Professional nurse | Ubuntu Community Health Centre |
+| `kamogelo`, `neontle` | Doctor | Ubuntu Community Health Centre |
+| `samuel.olajide`, `tshiamo.bokaba` | Doctor | Lesedi District Hospital |
+| `manager.district` | District manager | all facilities |
+
+What needs real services before clinical use: an SMS gateway account, a lab's FHIR feed, SAHPRA registration as software as a medical device, a local validation study, and native-speaker review of the translations.
+
 
 ## How to Run
 
@@ -232,10 +269,18 @@ app/
   trusted_issuers.json        public keys of issuers whose signatures are trusted
   advice.py                   personal health advice rules
   demo_data.py                demo patients seeded on first run
-  web/                        index.html, theme.css, app.js (clinician), patient.js (health tracker), i18n.js (11 languages)
+  facilities.py               facilities, staff roles, who may see which patient
+  triage.py                   South African Triage Scale (TEWS + discriminators) and the waiting room
+  scores.py                   Framingham 2008 validated 10-year CVD score
+  care.py                     priority booking, appointments, closed-loop referrals, referral letters
+  messaging.py                SMS / WhatsApp reminder outbox and dispatcher
+  interop.py                  SA ID numbers, HL7 FHIR export and lab-result import
+  privacy.py                  POPIA consent, contact settings, download my data
+  monitoring.py               confirmed outcomes, live accuracy/bias monitoring, district overview
+  web/                        index.html, theme.css, app.js (clinician), staff.js (waiting room, bookings, referrals, monitoring), patient.js (health tracker), i18n.js (11 languages)
   streamlit_app.py            backup Streamlit tool
   utils.py, translations.py   shared risk tiers; Streamlit translations
-tests/                        API, sign-in/security, document-verification and translation tests
+tests/                        API, sign-in/security, documents, translations, clinic workflow (test_practice) and integrations
 scripts/make_demo_documents.py  creates the fictional demo issuer and sample PDFs
 sample_documents/             sample clinical PDFs for the demo and tests
 run_app.py                    starts the web app

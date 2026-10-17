@@ -66,7 +66,7 @@ const SKAI = (() => {
 
     function t(key, vars = {}) {
         const dict = window.SKAI_I18N;
-        let s = (dict[state.lang] && dict[state.lang][key]) || dict.en[key] || key;
+        let s = (dict[state.lang] && dict[state.lang][key]) || dict.en[key] || (window.SKAI_STAFF_TEXT || {})[key] || key;
         for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
         return s;
     }
@@ -160,7 +160,7 @@ const SKAI = (() => {
             session.set(r.token, r.clinician);
             $('login-pass').value = '';
             toast(t('signed_in_as', { name: r.clinician.name }), 'success');
-            openWorkspace('clinician');
+            openWorkspace('clinician', r.clinician.role === 'nurse' ? 'triage' : 'assess');
         } catch (e) {
             const key = { locked: 'login_locked', login_failed: 'login_failed' }[e.message];
             $('login-error').textContent = key ? t(key) : `${t('error_generic')} (${e.message})`;
@@ -191,7 +191,7 @@ const SKAI = (() => {
         $('doctor-avatar').innerHTML = avatarHtml(c);
         $('doctor-name').textContent = c.name;
         $('doctor-dd-name').textContent = c.name;
-        $('doctor-dd-title').textContent = c.title || '';
+        $('doctor-dd-title').textContent = [c.title, c.facility_name].filter(Boolean).join(' · ');
     }
 
     function toggleDoctorMenu() { $('doctor-dropdown').classList.toggle('hidden'); }
@@ -389,12 +389,21 @@ const SKAI = (() => {
         showView('view-home');
     }
 
+    // Staff-only tabs (waiting room, bookings, referrals, outbox) live in staff.js
+    const STAFF_TABS = ['triage', 'bookings', 'referrals', 'outbox', 'monitoring'];
     function showTab(tab) {
-        $('panel-assess').classList.toggle('hidden', tab !== 'assess');
-        $('panel-models').classList.toggle('hidden', tab !== 'models');
-        $('tab-assess').className = `px-3 py-1.5 rounded-lg ${tab === 'assess' ? 'tab-active' : 'text-slate-300'}`;
-        $('tab-models').className = `px-3 py-1.5 rounded-lg ${tab === 'models' ? 'tab-active' : 'text-slate-300'}`;
+        const staff = state.role === 'clinician';
+        const monitoring = staff && SKAI.staff && SKAI.staff.can('dashboard');
+        if ((!staff && STAFF_TABS.includes(tab)) || (tab === 'monitoring' && !monitoring)) tab = 'assess';
+        for (const name of ['assess', 'models', ...STAFF_TABS]) {
+            $(`panel-${name}`).classList.toggle('hidden', tab !== name);
+            const btn = $(`tab-${name}`);
+            btn.classList.toggle('hidden', (STAFF_TABS.includes(name) && !staff) || (name === 'monitoring' && !monitoring));
+            btn.className = `px-3 py-1.5 rounded-lg ${tab === name ? 'tab-active' : 'text-slate-300'}${btn.classList.contains('hidden') ? ' hidden' : ''}`;
+        }
+        $('mode-toggle').classList.toggle('hidden', !staff || tab !== 'assess');
         if (tab === 'models') renderModels();
+        if (SKAI.staff) SKAI.staff.render(tab);
     }
 
     function setMode(mode) {
@@ -759,6 +768,22 @@ const SKAI = (() => {
         if (!p) return;
         $('app-access-status').className = `chip ${p.has_account ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`;
         $('app-access-status').textContent = t(p.has_account ? 'code_has_account' : 'code_no_account');
+        $('btn-book').classList.toggle('hidden', !SKAI.staff.can('book'));
+        $('btn-refer').classList.toggle('hidden', !SKAI.staff.can('refer'));
+        $('btn-outcome').classList.toggle('hidden', !SKAI.staff.can('record_outcome'));
+        $('btn-labs').classList.toggle('hidden', !SKAI.staff.can('assess'));
+    }
+
+    function patientAction(action) {
+        const p = state.patient;
+        ({ outcome: () => SKAI.staff.openOutcome(p.id, p.name), fhir: () => SKAI.staff.exportFhir(p.id),
+           labs: () => SKAI.staff.openFhirImport(p.id, p.name) })[action]();
+    }
+
+    function bookPatient() { SKAI.staff.openBook(state.patient.id, state.patient.name); }
+    function referPatient() {
+        const latest = state.patient.assessments[state.patient.assessments.length - 1];
+        SKAI.staff.openRefer(state.patient.id, state.patient.name, latest ? `${pct(latest.probability)} (${latest.tier})` : '');
     }
 
     async function issueActivationCode() {
@@ -964,7 +989,7 @@ const SKAI = (() => {
         setResult(result) { state.result = result; state.inputs = result ? result.inputs : null; if (result) advisorIntro(); else clearResult(); },
     };
 
-    return { core, enter, home, showTab, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
+    return { core, enter, home, showTab, bookPatient, referPatient, patientAction, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
              toggleTheme, reviewDocument, filterQueue: renderQueue,
              login, logout, fillLogin, togglePassword, toggleDoctorMenu, doctorPhoto, openPasswordChange,
              changePassword, openActivity, viewDocument, closeModal, issueActivationCode,

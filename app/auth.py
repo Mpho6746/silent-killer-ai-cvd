@@ -79,9 +79,13 @@ def seed_clinicians(store):
         store.add_clinician(username, name, title, hash_password(DEMO_PASSWORD))
 
 
-def public(clinician):
+def public(clinician, store=None):
     """What the app may see about a clinician (never the password hash)."""
-    return {k: clinician.get(k) for k in ("id", "name", "title", "photo")}
+    out = {k: clinician.get(k) for k in ("id", "name", "title", "photo", "role", "facility_id")}
+    if store is not None and clinician.get("facility_id"):
+        row = store.conn.execute("SELECT name FROM facilities WHERE id = ?", (clinician["facility_id"],)).fetchone()
+        out["facility_name"] = row["name"] if row else None
+    return out
 
 
 # ---------- dependencies ----------
@@ -141,7 +145,7 @@ def login(body: Login, request: Request):
     token = secrets.token_urlsafe(32)
     store.create_session(token_hash(token), username, (now + timedelta(hours=SESSION_HOURS)).isoformat(timespec="seconds"))
     store.log(username, "login")
-    return {"token": token, "clinician": public(clinician), "expires_in_hours": SESSION_HOURS}
+    return {"token": token, "clinician": public(store.get_clinician(username), store), "expires_in_hours": SESSION_HOURS}
 
 
 @router.post("/api/auth/logout")
@@ -152,8 +156,8 @@ def logout(request: Request, clinician=Depends(require_clinician), authorization
 
 
 @router.get("/api/auth/me")
-def me(clinician=Depends(require_clinician)):
-    return public(clinician)
+def me(request: Request, clinician=Depends(require_clinician)):
+    return public(clinician, request.app.state.store)
 
 
 @router.put("/api/clinicians/me/photo")
@@ -178,4 +182,13 @@ def set_password(body: PasswordChange, request: Request, clinician=Depends(requi
 
 @router.get("/api/audit")
 def audit(request: Request, limit: int = 50, clinician=Depends(require_clinician)):
-    return request.app.state.store.recent_activity(min(max(limit, 1), 200))
+    """Managers see everyone's activity; other staff see their own."""
+    rows = request.app.state.store.recent_activity(500)
+    role = clinician.get("role")
+    if role == "facility_manager":
+        staff = {r[0] for r in request.app.state.store.conn.execute(
+            "SELECT id FROM clinicians WHERE facility_id = ?", (clinician.get("facility_id"),))}
+        rows = [r for r in rows if r["clinician_id"] in staff]
+    elif role != "district_manager":
+        rows = [r for r in rows if r["clinician_id"] == clinician["id"]]
+    return rows[:min(max(limit, 1), 200)]

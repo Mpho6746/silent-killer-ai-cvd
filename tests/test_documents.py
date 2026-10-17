@@ -68,7 +68,7 @@ def test_not_a_pdf():
 def client():
     with TestClient(app) as c:
         # Default header: a signed-in clinician. Patient calls pass their own session (see new_patient).
-        token = c.post("/api/auth/login", json={"username": "samuel.olajide", "password": DEMO_PASSWORD}).json()["token"]
+        token = c.post("/api/auth/login", json={"username": "sfiso.kekana", "password": DEMO_PASSWORD}).json()["token"]
         c.headers["Authorization"] = f"Bearer {token}"
         yield c
 
@@ -76,7 +76,7 @@ def client():
 def new_patient(client, pid, name="John Doe"):
     """Registers a patient and returns headers for their own session."""
     r = client.post("/api/patient-auth/register",
-                    json={"patient_id": pid, "name": name, "dob": "1979-03-14", "sex": "M", "password": "Patient2026!"})
+                    json={"consent": True, "patient_id": pid, "name": name, "dob": "1979-03-14", "sex": "M", "password": "Patient2026!"})
     assert r.status_code == 200, r.text
     return {"Authorization": f"Bearer {r.json()['token']}"}
 
@@ -153,7 +153,7 @@ def test_photo_validation(client):
 
 
 def test_registration_rules(client):
-    base = {"name": "X", "sex": "F", "password": "Patient2026!"}
+    base = {"name": "X", "sex": "F", "password": "Patient2026!", "consent": True}
     too_young = client.post("/api/patient-auth/register",
                             json={**base, "patient_id": "T-KID", "dob": str(date.today().year - 10) + "-01-01"})
     assert too_young.status_code == 422
@@ -161,6 +161,8 @@ def test_registration_rules(client):
     assert bad_id.status_code == 422
     short_pw = client.post("/api/patient-auth/register", json={**base, "patient_id": "T-PW", "dob": "1980-01-01", "password": "short"})
     assert short_pw.status_code == 422
+    no_consent = client.post("/api/patient-auth/register", json={**base, "patient_id": "T-NC", "dob": "1980-01-01", "consent": False})
+    assert no_consent.status_code == 422 and no_consent.json()["detail"]["code"] == "consent_required"
 
 
 def test_demo_john_dashboard(client):

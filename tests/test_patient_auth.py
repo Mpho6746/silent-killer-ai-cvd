@@ -63,7 +63,7 @@ def test_wrong_password_unknown_id_and_no_account_look_the_same(client):
 
 def test_patient_lockout(client):
     client.post("/api/patient-auth/register",
-                json={"patient_id": "LOCK-1", "name": "L", "dob": "1980-01-01", "password": "Patient2026!"})
+                json={"consent": True, "patient_id": "LOCK-1", "name": "L", "dob": "1980-01-01", "password": "Patient2026!"})
     for _ in range(5):
         patient_login(client, "LOCK-1", "wrong")
     assert patient_login(client, "LOCK-1", "Patient2026!").status_code == 429
@@ -86,12 +86,12 @@ def test_activation_code_flow(client):
 
     wrong = "000000" if issued["code"] != "000000" else "111111"
     assert client.post("/api/patient-auth/activate",
-                       json={"patient_id": "DEMO-003", "code": wrong, "password": "Sarah2026!"}).status_code == 401
-    ok = client.post("/api/patient-auth/activate", json={"patient_id": "DEMO-003", "code": issued["code"], "password": "Sarah2026!"})
+                       json={"consent": True, "patient_id": "DEMO-003", "code": wrong, "password": "Sarah2026!"}).status_code == 401
+    ok = client.post("/api/patient-auth/activate", json={"consent": True, "patient_id": "DEMO-003", "code": issued["code"], "password": "Sarah2026!"})
     assert ok.status_code == 200 and ok.json()["profile"]["has_account"]
     # one use only, and the code can't be used for another patient
     assert client.post("/api/patient-auth/activate",
-                       json={"patient_id": "DEMO-003", "code": issued["code"], "password": "Other2026!"}).status_code == 401
+                       json={"consent": True, "patient_id": "DEMO-003", "code": issued["code"], "password": "Other2026!"}).status_code == 401
     assert patient_login(client, "DEMO-003", "Sarah2026!").status_code == 200
 
     log = client.get("/api/audit", headers=clinician(client)).json()
@@ -99,11 +99,11 @@ def test_activation_code_flow(client):
 
 
 def test_activation_code_tries_are_limited(client):
-    code = client.post("/api/patients/DEMO-004/activation-code", headers=clinician(client)).json()["code"]
+    code = client.post("/api/patients/DEMO-004/activation-code", headers=clinician(client, "kamogelo")).json()["code"]
     wrong = "000000" if code != "000000" else "111111"
     for _ in range(5):
-        client.post("/api/patient-auth/activate", json={"patient_id": "DEMO-004", "code": wrong, "password": "Pieter2026!"})
-    late = client.post("/api/patient-auth/activate", json={"patient_id": "DEMO-004", "code": code, "password": "Pieter2026!"})
+        client.post("/api/patient-auth/activate", json={"consent": True, "patient_id": "DEMO-004", "code": wrong, "password": "Pieter2026!"})
+    late = client.post("/api/patient-auth/activate", json={"consent": True, "patient_id": "DEMO-004", "code": code, "password": "Pieter2026!"})
     assert late.status_code == 401
 
 

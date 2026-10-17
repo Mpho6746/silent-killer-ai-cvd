@@ -99,6 +99,7 @@ SKAI.patient = (() => {
             await startSession(await api('/api/patient-auth/register', {
                 patient_id: $('pt-new-id').value.trim(), name: $('pt-new-name').value.trim(),
                 dob: $('pt-new-dob').value, sex: $('pt-new-sex').value, password: $('pt-new-pass').value,
+                consent: $('pt-new-consent').checked,
             }));
             toast(t('pt_created'), 'success');
         } catch (e) { formError('pt-create-error', authError(e)); }
@@ -111,6 +112,7 @@ SKAI.patient = (() => {
         try {
             await startSession(await api('/api/patient-auth/activate', {
                 patient_id: $('pt-act-id').value.trim(), code: $('pt-act-code').value.trim(), password: $('pt-act-pass').value,
+                consent: $('pt-act-consent').checked,
             }));
             toast(t('pt_activated'), 'success');
         } catch (e) { formError('pt-activate-error', authError(e)); }
@@ -140,6 +142,7 @@ SKAI.patient = (() => {
     function render() {
         if (!data) return;
         renderHero();
+        renderCare();
         renderRisk();
         renderTips();
         renderVitals();
@@ -202,6 +205,7 @@ SKAI.patient = (() => {
                         <p class="text-sm font-bold tier-${r.tier}">${t(`tier_${r.tier}`)}</p>
                         <p class="text-[11px] text-slate-400 mt-2">${t('pt_assessed_on', { date: fmtDate(r.created_at || Date.now()) })}</p>
                     </div>
+                    ${validatedScore(r.validated_score)}
                     ${src ? `<p class="text-[11px] text-slate-400"><i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i>${t('pt_source', { issuer: esc(src.issuer || src.filename), date: src.document_date ? fmtDate(src.document_date) : '?' })} · ${t(`doc_${src.status}`)}</p>` : ''}
                     <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
                         <p class="text-xs font-bold text-white">${t('pt_explore')}</p>
@@ -245,6 +249,101 @@ SKAI.patient = (() => {
                 scales: { y: { min: 0, max: 100, grid, ticks: { callback: v => `${v}%` } },
                           x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 30 } } } },
         });
+    }
+
+    // Framingham 2008: a published, externally validated score shown next to SKAI's own estimate
+    function validatedScore(v) {
+        if (!v) return '';
+        if (!v.available) return `<p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-info mr-1"></i>${t('vs_unavailable')}</p>`;
+        const colour = { low: 'text-emerald-400', intermediate: 'text-amber-300', high: 'text-red-400' }[v.category];
+        return `
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="text-xs font-bold text-white"><i class="fa-solid fa-award text-skai-primary mr-1"></i>${t('vs_title')}</p>
+                    <span class="font-black ${colour}">${pct(v.risk_10y)} · ${t(`vs_cat_${v.category}`)}</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">${t('vs_text', { pct: pct(v.risk_10y) })}</p>
+            </div>`;
+    }
+
+    // ---------- referral and appointments ----------
+    function renderCare() {
+        const appts = data.appointments || [];
+        const refs = data.referrals || [];
+        $('pt-care').classList.toggle('hidden', !appts.length && !refs.length);
+        const when = iso => new Date(iso).toLocaleString(state.lang === 'en' ? 'en-ZA' : undefined,
+            { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        $('pt-care').innerHTML = `
+            ${refs.map(r => `
+                <div class="glass-card rounded-2xl p-5 border ${r.overdue || r.urgency !== 'routine' ? 'border-red-500/50' : 'border-amber-500/40'}">
+                    <h3 class="text-sm font-bold text-white mb-1"><i class="fa-solid fa-hospital text-red-400 mr-2"></i>${t('pt_referral_title')}</h3>
+                    <p class="text-sm text-slate-200">${t('pt_referral_text', { facility: `<b>${esc(r.to_name)}</b>`, date: `<b>${fmtDate(r.due_by)}</b>` })}</p>
+                </div>`).join('')}
+            ${appts.length ? `
+                <div class="glass-card rounded-2xl p-5">
+                    <h3 class="text-sm font-bold text-white mb-2"><i class="fa-regular fa-calendar-check text-skai-secondary mr-2"></i>${t('pt_appts_title')}</h3>
+                    <ul class="space-y-2">${appts.map(a => `
+                        <li class="bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+                            <i class="fa-solid fa-clock text-skai-secondary mr-1"></i>${t('pt_appt_at', { date: `<b class="text-white">${when(a.starts_at)}</b>`, facility: esc(a.facility_name) })}
+                        </li>`).join('')}</ul>
+                </div>` : ''}`;
+    }
+
+    // ---------- privacy (POPIA) and reminders ----------
+    function openPrivacy() {
+        modal(`
+            <h3 class="text-lg font-extrabold text-white mb-3"><i class="fa-solid fa-user-shield text-skai-secondary mr-2"></i>${t('privacy_title')}</h3>
+            <p class="text-sm text-slate-300">${t('privacy_text')}</p>
+            <button onclick="SKAI.patient.closeModal()" class="mt-5 w-full bg-slate-800 border border-slate-600 font-bold py-2.5 rounded-xl text-sm">${t('pt_close')}</button>`);
+    }
+
+    function openSettings() {
+        const p = data.profile;
+        const local = p.phone ? `0${p.phone.slice(3, 5)} ${p.phone.slice(5, 8)} ${p.phone.slice(8)}` : '';
+        modal(`
+            <h3 class="text-lg font-extrabold text-white mb-4"><i class="fa-solid fa-user-shield text-skai-secondary mr-2"></i>${t('pt_settings')}</h3>
+            <form id="st-form" class="space-y-3" onsubmit="event.preventDefault(); SKAI.patient.saveSettings();">
+                <div><label class="field-label" for="st-phone">${t('pt_phone')}</label><input id="st-phone" type="tel" class="field" maxlength="20" value="${esc(local)}" placeholder="082 123 4567"></div>
+                <label class="flex items-center gap-2 text-sm text-slate-200 cursor-pointer"><input id="st-sms" type="checkbox" class="accent-teal-500" ${p.sms_opt_in ? 'checked' : ''}> ${t('pt_sms_opt_in')}</label>
+                <div><label class="field-label" for="st-said">${t('pt_sa_id')}</label><input id="st-said" class="field tracking-wider" inputmode="numeric" maxlength="13" pattern="\\d{13}" value="${esc(p.sa_id || '')}"></div>
+                <p id="st-error" class="hidden text-xs font-bold text-red-400"></p>
+                <button class="on-accent w-full bg-gradient-to-r from-skai-secondary to-emerald-500 text-white font-bold py-2.5 rounded-xl text-sm">${t('pt_save')}</button>
+            </form>
+            <div class="mt-5 pt-4 border-t border-slate-700/60 space-y-2">
+                <p class="text-xs text-slate-400">${t('pt_export_text')}</p>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="SKAI.patient.download('export')" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-download text-skai-secondary mr-1"></i>${t('pt_export')}</button>
+                    <button onclick="SKAI.patient.download('fhir')" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-export text-skai-secondary mr-1"></i>${t('pt_export_fhir')}</button>
+                    <button onclick="SKAI.patient.openPrivacy()" class="text-xs text-skai-secondary font-bold underline px-1">${t('privacy_link')}</button>
+                </div>
+                ${p.consent_at ? `<p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i>${t('pt_consented', { date: fmtDate(p.consent_at) })}</p>` : ''}
+            </div>`);
+    }
+
+    async function saveSettings() {
+        if (!$('st-form').reportValidity()) return;
+        try {
+            const r = await api(`/api/patients/${enc(pid)}/contact`, { phone: $('st-phone').value.trim() || null,
+                sms_opt_in: $('st-sms').checked, sa_id: $('st-said').value.trim() || null }, 'PUT');
+            Object.assign(data.profile, r);
+            closeModal();
+            toast(t('pt_settings_saved'), 'success');
+        } catch (e) {
+            const key = { phone_invalid: 'err_phone_invalid', phone_needed: 'err_phone_needed' }[e.message]
+                || (e.message.startsWith('sa_id_') ? 'err_sa_id' : null);
+            $('st-error').textContent = key ? t(key) : `${t('error_generic')} (${e.message})`;
+            $('st-error').classList.remove('hidden');
+        }
+    }
+
+    async function download(kind) {
+        const res = await fetch(`${API_BASE}/api/patients/${enc(pid)}/${kind}`, { headers: authHeader() });
+        if (!res.ok) { toast(t('error_generic'), 'error'); return; }
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(await res.json(), null, 2)], { type: 'application/json' }));
+        link.download = kind === 'fhir' ? `SKAI_${pid}_FHIR.json` : `SKAI_my_data_${pid}.json`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 5000);
     }
 
     function planItems(r) {
@@ -601,6 +700,10 @@ SKAI.patient = (() => {
                 <div><label class="field-label" for="sc-years">${featureLabel('years_smoked')}</label><input id="sc-years" type="number" min="0" max="80" value="${prev.years_smoked || 0}" class="field"></div>
                 <div class="col-span-2"><label class="field-label" for="sc-fam">${featureLabel('family_history')}</label>
                     <select id="sc-fam" class="field"><option value="0">${t('no')}</option><option value="1" ${prev.family_history ? 'selected' : ''}>${t('yes')}</option></select></div>
+                <div class="col-span-2"><label class="field-label" for="sc-bpmed">${t('q_bp_treated')}</label>
+                    <select id="sc-bpmed" class="field"><option value="0">${t('no')}</option><option value="1" ${prev.bp_treated ? 'selected' : ''}>${t('yes')}</option></select></div>
+                <div class="col-span-2"><label class="field-label" for="sc-diab">${t('q_diabetes')}</label>
+                    <select id="sc-diab" class="field"><option value="0">${t('no')}</option><option value="1" ${prev.diabetes ? 'selected' : ''}>${t('yes')}</option></select></div>
                 <button class="on-accent col-span-2 bg-gradient-to-r from-skai-secondary to-emerald-500 text-white font-bold py-3 rounded-xl">${t('pt_check_run')}</button>
             </form>`);
     }
@@ -611,6 +714,7 @@ SKAI.patient = (() => {
             await api(`/api/patients/${enc(pid)}/self-check`, {
                 cigarettes_per_day: Number($('sc-cigs').value), years_smoked: Number($('sc-years').value),
                 family_history: $('sc-fam').value === '1',
+                bp_treated: $('sc-bpmed').value === '1', diabetes: $('sc-diab').value === '1',
             });
             closeModal();
             toast(t('pt_check_done'), 'success');
@@ -636,5 +740,6 @@ SKAI.patient = (() => {
     SKAI.core.onRerender(() => { if (data && !$('view-patient').classList.contains('hidden')) render(); });
 
     return { open, signIn, create, activate, showForm, sessionExpired, logout, whatIf, pickMood, editCheckin, saveCheckin, toggleDose, removeMed,
-             openAddMed, addTime, saveMed, openUpload, upload, openSelfCheck, runSelfCheck, photo, closeModal };
+             openAddMed, addTime, saveMed, openUpload, upload, openSelfCheck, runSelfCheck, photo, closeModal,
+             openPrivacy, openSettings, saveSettings, download };
 })();

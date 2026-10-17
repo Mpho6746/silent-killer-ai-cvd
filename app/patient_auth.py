@@ -25,7 +25,8 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
-from app.auth import LOCK_MINUTES, MAX_ATTEMPTS, SESSION_HOURS, hash_password, require_clinician, token_hash, verify_password
+from app.auth import LOCK_MINUTES, MAX_ATTEMPTS, SESSION_HOURS, hash_password, token_hash, verify_password
+from app.facilities import require, require_visible
 
 router = APIRouter()
 
@@ -51,6 +52,17 @@ def seed_patient_accounts(store):
         creds = store.get_patient_credentials(pid)
         if creds and not creds["password_hash"]:
             store.update_patient_credentials(pid, password_hash=hash_password(DEMO_PATIENT_PASSWORD))
+        if creds and not (store.get_profile(pid) or {}).get("consent_at"):
+            record_consent(store, pid)          # demo accounts count as having agreed to the notice
+
+
+CONSENT_VERSION = "2026-10"     # version of the POPIA privacy notice (see app/privacy.py)
+
+
+def record_consent(store, patient_id):
+    store.conn.execute("UPDATE patients SET consent_at = ?, consent_version = ? WHERE id = ?",
+                       (_now().isoformat(timespec="seconds"), CONSENT_VERSION, patient_id))
+    store.conn.commit()
 
 
 # ---------- dependencies ----------
@@ -85,6 +97,8 @@ class Register(BaseModel):
     dob: date
     sex: Optional[Literal["M", "F"]] = None
     password: str = Field(min_length=8, max_length=200)
+    facility_id: Optional[str] = Field(None, max_length=40)   # the clinic the patient attends
+    consent: bool = False                                     # POPIA: agreed to the privacy notice
 
     @field_validator("dob")
     @classmethod
@@ -103,6 +117,7 @@ class Activate(BaseModel):
     patient_id: str = Field(min_length=1, max_length=40)
     code: str = Field(pattern=r"^\d{6}$")
     password: str = Field(min_length=8, max_length=200)
+    consent: bool = False
 
 
 def _session(store, patient_id):
@@ -117,10 +132,19 @@ def _session(store, patient_id):
 @router.post("/api/patient-auth/register")
 def register(body: Register, request: Request):
     store = request.app.state.store
+    if not body.consent:
+        raise HTTPException(422, detail={"code": "consent_required"})
     if store.get_profile(body.patient_id):
         raise HTTPException(409, detail={"code": "id_taken"})
     store.upsert_patient(body.patient_id, body.name, body.sex, dob=body.dob.isoformat())
     store.update_patient_credentials(body.patient_id, password_hash=hash_password(body.password))
+    facility = store.conn.execute("SELECT id FROM facilities WHERE id = ?", (body.facility_id,)).fetchone() if body.facility_id else None
+    if not facility:   # unknown or missing: the first clinic
+        facility = store.conn.execute("SELECT id FROM facilities WHERE kind = 'clinic' ORDER BY name LIMIT 1").fetchone()
+    if facility:
+        store.conn.execute("UPDATE patients SET facility_id = ? WHERE id = ?", (facility[0], body.patient_id))
+        store.conn.commit()
+    record_consent(store, body.patient_id)
     return _session(store, body.patient_id)
 
 
@@ -144,6 +168,8 @@ def login(body: Login, request: Request):
 @router.post("/api/patient-auth/activate")
 def activate(body: Activate, request: Request):
     store = request.app.state.store
+    if not body.consent:
+        raise HTTPException(422, detail={"code": "consent_required"})
     pid = body.patient_id.strip()
     code = store.get_activation_code(pid)
     valid = (code and code["attempts"] < CODE_TRIES
@@ -156,6 +182,7 @@ def activate(body: Activate, request: Request):
     store.update_patient_credentials(pid, password_hash=hash_password(body.password), failed_attempts=0, locked_until=None)
     store.delete_activation_code(pid)
     store.delete_patient_sessions(pid)          # any older sessions end when the password is (re)set
+    record_consent(store, pid)
     return _session(store, pid)
 
 
@@ -175,11 +202,12 @@ def me(request: Request, patient_id=Depends(session_patient_id)):
 
 
 @router.post("/api/patients/{patient_id}/activation-code")
-def issue_code(patient_id: str, request: Request, clinician=Depends(require_clinician)):
+def issue_code(patient_id: str, request: Request, clinician=Depends(require("activation_code"))):
     """A clinician gives a clinic-registered patient a one-time code to set up their app account."""
     store = request.app.state.store
     if not store.get_profile(patient_id):
         raise HTTPException(404, "Patient not found")
+    require_visible(store, clinician, patient_id)
     code = f"{secrets.randbelow(1_000_000):06d}"
     expires = (_now() + timedelta(hours=CODE_HOURS)).isoformat(timespec="seconds")
     # Hashed with the patient ID so the same 6 digits can't be reused across patients
