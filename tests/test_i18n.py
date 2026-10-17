@@ -17,16 +17,35 @@ def keys_for(lang):
 
 
 def keys_used_by_ui():
+    from app.advice import __file__ as advice_py
+    from app.documents import RANGES, __file__ as documents_py
+    from app.patient_api import SYMPTOMS
+
     html = (WEB / "index.html").read_text(encoding="utf-8")
-    js = (WEB / "app.js").read_text(encoding="utf-8")
-    used = set(re.findall(r'data-i18n(?:-placeholder)?="(\w+)"', html))
+    js = (WEB / "app.js").read_text(encoding="utf-8") + (WEB / "patient.js").read_text(encoding="utf-8")
+    used = set(re.findall(r'data-i18n(?:-placeholder|-title)?="(\w+)"', html))
     used |= set(re.findall(r"\bt\('(\w+)'", js))
     used |= {f"f_{k}" for k in re.findall(r"\{ key: '(\w+)'", js)}       # form field labels
     used |= {f"tier_{t}" for t in ["low", "moderate", "high", "critical"]}
-    used |= {f"flag_{f}" for f in ["high_risk", "rising", "follow_up_due"]}
+    used |= {f"flag_{f}" for f in ["high_risk", "rising", "follow_up_due", "needs_verification"]}
     used |= {f"q_{q}" for q in ["why", "lower", "doctor"]}
     used |= {f"action_{a}" for a in ["lower_bp", "lower_cholesterol", "control_sugar", "quit_smoking",
                                      "lower_ldl", "healthy_weight", "all_changes"]}
+    # Keys built from API values: advice, symptoms, document statuses/reasons/warnings, vitals
+    advice_src = Path(advice_py).read_text(encoding="utf-8")
+    used |= {f"advice_{k}" for k in re.findall(r'add\("(\w+)"', advice_src)} | {"advice_streak"}
+    used |= {f"sym_{s}" for s in SYMPTOMS}
+    statuses = ["verified", "approved", "pending_review", "rejected"]
+    used |= {f"doc_{s}" for s in statuses} | {f"res_{s}" for s in statuses}
+    documents_src = Path(documents_py).read_text(encoding="utf-8")
+    used |= {f"reason_{r}" for r in re.findall(r'reasons(?:=\[|\.append\()"(\w+)"', documents_src)}
+    used |= {f"warn_{w}" for w in re.findall(r'warnings(?:=\[|\.append\()"(\w+)"', documents_src)}
+    used |= {f"v_{k}" for k in RANGES} | {"v_bp", "v_bmi"}
+    # Audit-log actions written by the API (shown in the activity log)
+    app_dir = Path(advice_py).parent
+    log_src = "".join((app_dir / f).read_text(encoding="utf-8") for f in ("auth.py", "api.py", "patient_api.py", "patient_auth.py"))
+    used |= {f"act_{a}" for a in re.findall(r'\.log\([^,]+, "(\w+)"', log_src)}
+    used |= {"act_review_approve", "act_review_reject"}   # chosen with a conditional expression
     return used
 
 

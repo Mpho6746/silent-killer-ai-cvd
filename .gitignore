@@ -219,3 +219,5 @@ __marimo__/
 
 # SKAI local patient database (created on first run)
 data/app/
+# Demo document issuer's signing key (scripts/make_demo_documents.py); never commit private keys
+data/demo_issuer_private_key.pem

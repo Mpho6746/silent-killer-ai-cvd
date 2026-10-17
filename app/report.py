@@ -31,6 +31,7 @@ FEATURE_LABELS = {
     "cigarettes_per_day": "Cigarettes per day", "years_smoked": "Years smoked",
     "family_history": "Family history of heart disease", "height_cm": "Height (cm)",
     "weight_kg": "Weight (kg)", "bmi": "BMI (kg/m2)",
+    "document_id": "Vitals from uploaded document #", "vitals_status": "Document status",
 }
 
 ACTION_LABELS = {

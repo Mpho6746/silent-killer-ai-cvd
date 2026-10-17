@@ -1,0 +1,4 @@
+# Never convert line endings in binary files (sample clinical PDFs, models)
+*.pdf binary
+*.pkl binary
+*.png binary

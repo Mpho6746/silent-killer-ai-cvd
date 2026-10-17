@@ -1,0 +1,107 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+/SKAIPayload (\173\042issuer\042\072 \042skai\055demo\055clinic\042\054 \042document\137id\042\072 \042john\137doe\137verified\042\054 \042issued\042\072 \0422026\05510\05502\042\054 \042patient\042\072 \173\042name\042\072 \042John Doe\042\054 \042dob\042\072 \0421979\05503\05514\042\175\054 \042vitals\042\072 \173\042sbp\042\072 134\054 \042dbp\042\072 86\054 \042heart\137rate\042\072 74\054 \042ldl\042\072 3\0569\054 \042total\137cholesterol\042\072 5\0568\054 \042glucose\042\072 5\0564\054 \042height\137cm\042\072 176\054 \042weight\137kg\042\072 86\175\175)
+/SKAISignature (t8xjnTQ\053aSstDUXrMi\053xM3xq7o01v1s1lXPi32oWU26xKMTraQpDUvQ5\053pHYJ4Qdtbh8t6mBA62Mcu0UpR7zCQ\075\075)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+/Outlines 10 0 R
+>>
+endobj
+4 0 obj
+<<
+/Contents 5 0 R
+/MediaBox [ 0 0 595.2756 841.8898 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+>>
+endobj
+5 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 944
+>>
+stream
+GatU2gMWKG&:O:SbbGin)tqS>/ZG5:W@R(>W@rN?JF-(A,_0+\mlQF^L<'jB/*+l-1Zt:!SK4B]iC3)$0EntV_q>b.b$_p`.YrWN$pN!-Y9Vah.RoY2L4[Ep^/>[:d-]BO@Q?aXg4Ed[MLZ,6mf45HE0LZ<W%mM.7kfDeG4?;bK;-NJ!iBt+_l(Fb2EZQd1X&X'dZ6mQGBiKg,fH>u[LpH/HM%V\6/sI7<]89U"S-">A@;o:#nn_>oHf>;b/8??B,)ug!if6/[H7b&DFK#IMJ;'CT0$'M"/p#<#%Z2sls#^2Wm9QM?Y(q9j!3&ur#a%X5nuc$J1"Q#X)jq'Ru,05<"+s?6iVqKMT[K0c@L779rL#@fFa?O'BRF37Ftl%+Td=2rN@I*8`+.^LepbQM8,R$c(2kuV>8cbOqT9(a):OCLgb:\R-r\0j1TCGeleOFWjH!fpj4!FlQUMce6,-dPUT3QokBn8+.);h)n`A%80CSHI[T8B"><2K3h@LT-Acb_jss!OlfJ*S`924Q5!4kK\$F-i)a9i%OYmD8p+[6BqjAWI*)"gI%'7Rl3pJcGf`MD$g&Pq&Y6@&%Uk_5.B%pqH)2,%QENNI+aT-@F`/-drH#bf)KJ#2&2U<nD<QF,YBfK`0nAT"#Y-?>4>J`-uLNtmZQR59:0n@Po;fK?R%J>2a9=;VmHE\B3b`?9'jL-:^G5K*ML)^%QO,3EkDAWq=hc'X(N(R[>rl^*O$,>4dOR?_31D>#3>s1^X[atiPKH'udMY14f[Or_L/i6cK;`tqcXip<_/i:$ido0[u,'6V5hFWel"`bu@p\9#h^<aM>B2WV*`^sj'D'A<Wc#o^+nN:Xu5#$a\D8>&B"AJ42iiu,4TX;lnNo90(Ib%^C5jg=Zoih`RMZf*2]2>\H\U-3<frlO'&WW!Z:3.ODKqjR=HWn8L&(V7CQN~>
+endstream
+endobj
+6 0 obj
+<<
+/F1 7 0 R
+/F2 8 0 R
+/F3 9 0 R
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+9 0 obj
+<<
+/BaseFont /Helvetica-Oblique
+/Encoding /WinAnsiEncoding
+/Name /F3
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+10 0 obj
+<<
+>>
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000015 00000 n 
+0000000744 00000 n 
+0000000803 00000 n 
+0000000869 00000 n 
+0000001068 00000 n 
+0000002103 00000 n 
+0000002154 00000 n 
+0000002261 00000 n 
+0000002373 00000 n 
+0000002488 00000 n 
+trailer
+<<
+/Size 11
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+2510
+%%EOF
