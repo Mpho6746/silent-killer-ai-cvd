@@ -128,7 +128,8 @@ const SKAI = (() => {
     }
 
     // ---------- sign-in ----------
-    const DEMO_DOCTORS = ['samuel.olajide', 'sfiso.kekana', 'mpho.mutengwe', 'tshiamo.bokaba', 'kamogelo', 'neontle'];
+    const DEMO_DOCTORS = ['samuel.olajide', 'sfiso.kekana', 'mpho.mutengwe', 'tshiamo.bokaba', 'kamogelo', 'neontle',
+                          'nurse.thandi', 'nurse.lindiwe', 'manager.district'];
 
     function showLogin() {
         moveAdvisor(false);
