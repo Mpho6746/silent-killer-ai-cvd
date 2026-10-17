@@ -81,18 +81,208 @@ const SKAI = (() => {
         setTimeout(() => el.remove(), 4000);
     }
 
-    async function api(path, body) {
-        const res = await fetch(API_BASE + path, body ? {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-        } : undefined);
+    // ---------- clinician session ----------
+    // The token lives in this browser only; the server keeps just its hash and expires it after 8 hours.
+    const session = {
+        get token() { try { return localStorage.getItem('skai-clinician-token'); } catch (e) { return null; } },
+        set(token, clinician) {
+            try { localStorage.setItem('skai-clinician-token', token); } catch (e) { /* private mode */ }
+            state.clinician = clinician;
+        },
+        clear() {
+            try { localStorage.removeItem('skai-clinician-token'); } catch (e) { /* private mode */ }
+            state.clinician = null;
+        },
+    };
+
+    async function api(path, body, method) {
+        const headers = body ? { 'Content-Type': 'application/json' } : {};
+        if (session.token) headers.Authorization = `Bearer ${session.token}`;
+        const res = await fetch(API_BASE + path, {
+            method: method || (body ? 'POST' : 'GET'), headers, body: body ? JSON.stringify(body) : undefined,
+        });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             // FastAPI returns a list (validation), a string, or {code} for app errors
             const detail = Array.isArray(err.detail) ? err.detail.map(d => d.msg).join('; ')
                 : (err.detail && err.detail.code) || err.detail;
+            if (detail === 'not_signed_in' && state.role === 'clinician') sessionExpired();
             throw new Error(detail || res.statusText);
         }
         return res.json();
+    }
+
+    function sessionExpired() {
+        session.clear();
+        toast(t('session_expired'), 'warning');
+        showLogin();
+    }
+
+    // ---------- sign-in ----------
+    const DEMO_DOCTORS = ['samuel.olajide', 'sfiso.kekana', 'mpho.mutengwe', 'tshiamo.bokaba', 'kamogelo', 'neontle'];
+
+    function showLogin() {
+        moveAdvisor(false);
+        showView('view-login');
+        $('login-error').classList.add('hidden');
+        $('login-pass').value = '';
+        $('login-demo').innerHTML = DEMO_DOCTORS.map(u =>
+            `<button type="button" onclick="SKAI.fillLogin('${u}')" class="chip bg-slate-800 border border-slate-600 text-slate-200 hover:border-skai-primary !text-[11px] !py-1">${u}</button>`).join('');
+        setTimeout(() => ($('login-user').value ? $('login-pass') : $('login-user')).focus(), 50);
+    }
+
+    function fillLogin(username) {
+        $('login-user').value = username;
+        $('login-pass').focus();
+    }
+
+    function togglePassword() {
+        const show = $('login-pass').type === 'password';
+        $('login-pass').type = show ? 'text' : 'password';
+        $('login-eye').className = `fa-solid ${show ? 'fa-eye-slash' : 'fa-eye'} text-xs`;
+    }
+
+    async function login() {
+        if (!$('login-form').reportValidity()) return;
+        $('login-btn').disabled = true;
+        $('login-error').classList.add('hidden');
+        try {
+            const r = await api('/api/auth/login', { username: $('login-user').value.trim(), password: $('login-pass').value });
+            session.set(r.token, r.clinician);
+            $('login-pass').value = '';
+            toast(t('signed_in_as', { name: r.clinician.name }), 'success');
+            openWorkspace('clinician');
+        } catch (e) {
+            const key = { locked: 'login_locked', login_failed: 'login_failed' }[e.message];
+            $('login-error').textContent = key ? t(key) : `${t('error_generic')} (${e.message})`;
+            $('login-error').classList.remove('hidden');
+        } finally {
+            $('login-btn').disabled = false;
+        }
+    }
+
+    async function logout() {
+        try { await api('/api/auth/logout', {}); } catch (e) { /* already expired */ }
+        session.clear();
+        closeDoctorMenu();
+        toast(t('signed_out'), 'info');
+        home();
+    }
+
+    function avatarHtml(person, size = 'w-7 h-7 text-[10px]') {
+        if (person.photo) return `<img src="${esc(person.photo)}" alt="" class="${size} rounded-full object-cover">`;
+        const initials = person.name.replace(/^Dr\.?\s+/i, '').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        return `<span class="on-accent ${size} rounded-full bg-gradient-to-br from-skai-primary to-blue-600 text-white font-black flex items-center justify-center shrink-0">${esc(initials)}</span>`;
+    }
+
+    function renderDoctor() {
+        const c = state.clinician;
+        $('doctor-menu').classList.toggle('hidden', !c || state.role !== 'clinician');
+        if (!c) return;
+        $('doctor-avatar').innerHTML = avatarHtml(c);
+        $('doctor-name').textContent = c.name;
+        $('doctor-dd-name').textContent = c.name;
+        $('doctor-dd-title').textContent = c.title || '';
+    }
+
+    function toggleDoctorMenu() { $('doctor-dropdown').classList.toggle('hidden'); }
+    function closeDoctorMenu() { $('doctor-dropdown').classList.add('hidden'); }
+    document.addEventListener('click', e => { if (!e.target.closest('#doctor-menu')) closeDoctorMenu(); });
+
+    // Shared by the doctor and patient profile pictures: centre-crop to a small square JPEG
+    function resizeImage(file, size = 256) {
+        return new Promise((resolve, reject) => {
+            if (!file || !file.type.startsWith('image/')) { reject(new Error('not an image')); return; }
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = canvas.height = size;
+                const side = Math.min(img.width, img.height);
+                canvas.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+                URL.revokeObjectURL(img.src);
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+            };
+            img.onerror = reject;
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    async function doctorPhoto(file) {
+        closeDoctorMenu();
+        try {
+            const dataUrl = await resizeImage(file);
+            await api('/api/clinicians/me/photo', { data_url: dataUrl }, 'PUT');
+            state.clinician.photo = dataUrl;
+            renderDoctor();
+            toast(t('photo_saved'), 'success');
+        } catch (e) { toast(t('error_generic'), 'error'); }
+    }
+
+    // ---------- shared modal ----------
+    function modal(html) {
+        $('modal-body').innerHTML = html;
+        $('modal').classList.remove('hidden');
+        $('modal').classList.add('flex');
+    }
+
+    function closeModal() {
+        $('modal').classList.add('hidden');
+        $('modal').classList.remove('flex');
+    }
+
+    function openPasswordChange() {
+        closeDoctorMenu();
+        modal(`
+            <h3 class="text-lg font-extrabold text-white mb-4"><i class="fa-solid fa-key text-skai-primary mr-2"></i>${t('pw_title')}</h3>
+            <form id="pw-form" class="space-y-3" onsubmit="event.preventDefault(); SKAI.changePassword();">
+                <div><label class="field-label" for="pw-current">${t('pw_current')}</label><input id="pw-current" type="password" class="field" autocomplete="current-password" required></div>
+                <div><label class="field-label" for="pw-new">${t('pw_new')}</label><input id="pw-new" type="password" class="field" autocomplete="new-password" minlength="8" required></div>
+                <p id="pw-error" class="hidden text-xs font-bold text-red-400"></p>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="SKAI.closeModal()" class="flex-1 bg-slate-800 border border-slate-600 font-bold py-2.5 rounded-xl text-sm">${t('pt_cancel')}</button>
+                    <button class="on-accent flex-1 bg-skai-primary text-white font-bold py-2.5 rounded-xl text-sm">${t('pt_save')}</button>
+                </div>
+            </form>`);
+        $('pw-current').focus();
+    }
+
+    async function changePassword() {
+        if (!$('pw-form').reportValidity()) return;
+        try {
+            await api('/api/clinicians/me/password', { current: $('pw-current').value, new: $('pw-new').value }, 'PUT');
+            closeModal();
+            toast(t('pw_changed'), 'success');
+        } catch (e) {
+            $('pw-error').textContent = e.message === 'pw_wrong' ? t('pw_wrong') : `${t('error_generic')} (${e.message})`;
+            $('pw-error').classList.remove('hidden');
+        }
+    }
+
+    async function openActivity() {
+        closeDoctorMenu();
+        let log = [];
+        try { log = await api('/api/audit?limit=60'); } catch (e) { return; }
+        const when = iso => new Date(iso).toLocaleString(state.lang === 'en' ? 'en-ZA' : undefined,
+            { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        modal(`
+            <h3 class="text-lg font-extrabold text-white mb-1"><i class="fa-solid fa-clock-rotate-left text-skai-primary mr-2"></i>${t('activity_title')}</h3>
+            <p class="text-xs text-slate-400 mb-4">${t('activity_sub')}</p>
+            <ul class="space-y-2">${log.map(a => `
+                <li class="flex items-center gap-3 bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2">
+                    ${avatarHtml({ name: a.clinician_name, photo: a.clinician_photo })}
+                    <div class="flex-1 min-w-0 text-xs"><span class="font-bold text-white">${esc(a.clinician_name)}</span>
+                        <span class="text-slate-300">${t(`act_${a.action}`, { target: esc(a.target || '') })}</span></div>
+                    <span class="text-[10px] text-slate-500 whitespace-nowrap">${when(a.at)}</span>
+                </li>`).join('')}</ul>
+            <button onclick="SKAI.closeModal()" class="mt-4 w-full bg-slate-800 border border-slate-600 font-bold py-2.5 rounded-xl text-sm">${t('pt_close')}</button>`);
+    }
+
+    // Documents need the clinician's session, so they are fetched with it rather than linked directly
+    async function viewDocument(id) {
+        const res = await fetch(`${API_BASE}/api/documents/${id}/file`, { headers: { Authorization: `Bearer ${session.token}` } });
+        if (res.status === 401) { sessionExpired(); return; }
+        if (!res.ok) { toast(t('error_generic'), 'error'); return; }
+        window.open(URL.createObjectURL(await res.blob()), '_blank', 'noopener');
     }
 
     function chart(id, config) {
@@ -134,7 +324,7 @@ const SKAI = (() => {
 
     // ---------- navigation ----------
     function showView(id) {
-        for (const v of ['view-home', 'view-work', 'view-patient']) {
+        for (const v of ['view-home', 'view-login', 'view-work', 'view-patient']) {
             $(v).classList.toggle('hidden', v !== id);
         }
         $('view-work').classList.toggle('flex', id === 'view-work');
@@ -145,7 +335,15 @@ const SKAI = (() => {
         (toPatient ? $('pt-advisor-slot') : $('advisor-home')).appendChild($('advisor-card'));
     }
 
-    function enter(role, tab = 'assess') {
+    async function enter(role, tab = 'assess') {
+        if (role === 'clinician') {
+            if (!session.token) { showLogin(); return; }
+            try { state.clinician = await api('/api/auth/me'); } catch (e) { session.clear(); showLogin(); return; }
+        }
+        openWorkspace(role, tab);
+    }
+
+    function openWorkspace(role, tab = 'assess') {
         state.role = role;
         state.result = null;
         if (role === 'patient') {
@@ -157,6 +355,7 @@ const SKAI = (() => {
         }
         moveAdvisor(false);
         showView('view-work');
+        renderDoctor();
         const clinician = role === 'clinician';
         $('queue-panel').classList.toggle('hidden', !clinician);
         $('mode-toggle').classList.toggle('hidden', !clinician);
@@ -432,7 +631,8 @@ const SKAI = (() => {
             <button data-id="${esc(q.id)}" onclick="SKAI.selectPatient(this.dataset.id)" class="w-full text-left glass-card rounded-xl p-3 border hover:border-skai-primary transition ${q.flags.includes('high_risk') ? 'border-red-500/30' : 'border-slate-800'}">
                 <div class="flex justify-between items-start">
                     <div><div class="font-bold text-sm text-white">${esc(q.name)}</div>
-                         <div class="text-[11px] text-slate-400">${esc(q.id)} • ${t(`kind_${q.latest.kind}`)} • ${when}</div></div>
+                         <div class="text-[11px] text-slate-400">${esc(q.id)} • ${t(`kind_${q.latest.kind}`)} • ${when}</div>
+                         ${q.latest.created_by_name ? `<div class="text-[10px] text-slate-500"><i class="fa-solid fa-user-doctor mr-1"></i>${esc(q.latest.created_by_name)}</div>` : ''}</div>
                     <div class="text-right"><div class="font-black tier-${q.latest.tier}">${pct(q.latest.probability)}</div>${change}</div>
                 </div>
                 ${q.flags.length ? `<div class="flex flex-wrap gap-1 mt-2">${q.flags.map(f => `<span class="chip ${flagStyle[f]}">${t(`flag_${f}`)}</span>`).join('')}</div>` : ''}
@@ -483,7 +683,7 @@ const SKAI = (() => {
             <li class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
                 ${docLine(d)}
                 <div class="flex flex-wrap gap-2 mt-2 text-xs">
-                    <a href="${API_BASE}/api/documents/${d.id}/file" target="_blank" rel="noopener" class="px-2 py-1 rounded-lg bg-slate-800 border border-slate-600 hover:border-skai-primary"><i class="fa-solid fa-eye mr-1"></i>${t('doc_view')}</a>
+                    <button onclick="SKAI.viewDocument(${d.id})" class="px-2 py-1 rounded-lg bg-slate-800 border border-slate-600 hover:border-skai-primary"><i class="fa-solid fa-eye mr-1"></i>${t('doc_view')}</button>
                     ${d.status === 'pending_review' ? `
                     <button onclick="SKAI.reviewDocument(${d.id}, true)" class="on-accent px-2 py-1 rounded-lg bg-emerald-600 text-white font-bold"><i class="fa-solid fa-check mr-1"></i>${t('doc_approve')}</button>
                     <button onclick="SKAI.reviewDocument(${d.id}, false)" class="on-accent px-2 py-1 rounded-lg bg-red-600 text-white font-bold"><i class="fa-solid fa-xmark mr-1"></i>${t('doc_reject')}</button>` : ''}
@@ -707,6 +907,7 @@ const SKAI = (() => {
     // Shared helpers for patient.js
     const core = {
         state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine,
+        modal, closeModal, resizeImage,
         onRerender: fn => rerenderHooks.push(fn),
         // Point the shared advisor at a patient's result
         setResult(result) { state.result = result; state.inputs = result ? result.inputs : null; if (result) advisorIntro(); else clearResult(); },
@@ -714,5 +915,7 @@ const SKAI = (() => {
 
     return { core, enter, home, showTab, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
              toggleTheme, reviewDocument, filterQueue: renderQueue,
+             login, logout, fillLogin, togglePassword, toggleDoctorMenu, doctorPhoto, openPasswordChange,
+             changePassword, openActivity, viewDocument, closeModal,
              showModels: () => enter('viewer', 'models') };
 })();

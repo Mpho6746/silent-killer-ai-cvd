@@ -41,6 +41,11 @@ def keys_used_by_ui():
     used |= {f"reason_{r}" for r in re.findall(r'reasons(?:=\[|\.append\()"(\w+)"', documents_src)}
     used |= {f"warn_{w}" for w in re.findall(r'warnings(?:=\[|\.append\()"(\w+)"', documents_src)}
     used |= {f"v_{k}" for k in RANGES} | {"v_bp", "v_bmi"}
+    # Audit-log actions written by the API (shown in the activity log)
+    app_dir = Path(advice_py).parent
+    log_src = "".join((app_dir / f).read_text(encoding="utf-8") for f in ("auth.py", "api.py", "patient_api.py"))
+    used |= {f"act_{a}" for a in re.findall(r'\.log\([^,]+, "(\w+)"', log_src)}
+    used |= {"act_review_approve", "act_review_reject"}   # chosen with a conditional expression
     return used
 
 

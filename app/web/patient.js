@@ -5,7 +5,8 @@
 // (app/documents.py). The only things a patient answers themselves are the ones
 // no clinic document records: smoking and family history.
 SKAI.patient = (() => {
-    const { state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine } = SKAI.core;
+    const { state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine,
+            modal, closeModal, resizeImage } = SKAI.core;
     const $ = id => document.getElementById(id);
     const enc = encodeURIComponent;
 
@@ -572,36 +573,14 @@ SKAI.patient = (() => {
     }
 
     // ---------- profile picture ----------
-    function photo(file) {
-        if (!file || !file.type.startsWith('image/')) return;
-        const img = new Image();
-        img.onload = async () => {
-            // Centre-crop to a 256px square so uploads stay small
-            const size = 256, canvas = document.createElement('canvas');
-            canvas.width = canvas.height = size;
-            const side = Math.min(img.width, img.height);
-            canvas.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
-            URL.revokeObjectURL(img.src);
-            const req = await fetch(`${API_BASE}/api/patients/${enc(pid)}/photo`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data_url: canvas.toDataURL('image/jpeg', 0.85) }),
-            });
-            if (req.ok) { toast(t('pt_photo_saved'), 'success'); data.profile.photo = canvas.toDataURL('image/jpeg', 0.85); renderHero(); }
-            else toast(t('error_generic'), 'error');
-        };
-        img.src = URL.createObjectURL(file);
-    }
-
-    // ---------- modal ----------
-    function modal(html) {
-        $('modal-body').innerHTML = html;
-        $('modal').classList.remove('hidden');
-        $('modal').classList.add('flex');
-    }
-
-    function closeModal() {
-        $('modal').classList.add('hidden');
-        $('modal').classList.remove('flex');
+    async function photo(file) {
+        try {
+            const dataUrl = await resizeImage(file);
+            await api(`/api/patients/${enc(pid)}/photo`, { data_url: dataUrl }, 'PUT');
+            data.profile.photo = dataUrl;
+            renderHero();
+            toast(t('pt_photo_saved'), 'success');
+        } catch (e) { toast(t('error_generic'), 'error'); }
     }
 
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });

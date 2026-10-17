@@ -76,6 +76,37 @@
     </div>
 </section>
 
+<!-- ===================== CLINICIAN SIGN-IN ===================== -->
+<section id="view-login" class="hidden min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+    <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-skai-primary rounded-full filter blur-[150px] opacity-10"></div>
+    <div class="absolute top-5 right-5 flex items-center gap-2">
+        <button onclick="SKAI.toggleTheme()" class="theme-toggle text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" aria-label="Theme"><i class="fa-solid fa-moon"></i></button>
+        <select aria-label="Language" class="lang-select bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5 focus:outline-none cursor-pointer"></select>
+    </div>
+    <div class="glass-card rounded-3xl p-8 max-w-md w-full z-10 fade-in">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-2xl bg-slate-900 border-2 border-skai-primary flex items-center justify-center"><i class="fa-solid fa-user-doctor text-xl text-skai-primary"></i></div>
+            <div><h1 class="text-xl font-extrabold text-white" data-i18n="login_title">Clinician sign-in</h1>
+                 <p class="text-xs text-slate-400" data-i18n="login_sub">Every action is recorded under your name.</p></div>
+        </div>
+        <form id="login-form" class="space-y-3" onsubmit="event.preventDefault(); SKAI.login();">
+            <div><label class="field-label" for="login-user" data-i18n="login_user">Username</label>
+                 <input id="login-user" class="field" autocomplete="username" autocapitalize="none" maxlength="60" required></div>
+            <div><label class="field-label" for="login-pass" data-i18n="login_pass">Password</label>
+                 <div class="relative"><input id="login-pass" type="password" class="field pr-10" autocomplete="current-password" maxlength="200" required>
+                 <button type="button" onclick="SKAI.togglePassword()" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white w-7 h-7" aria-label="Show password"><i id="login-eye" class="fa-solid fa-eye text-xs"></i></button></div></div>
+            <p id="login-error" class="hidden text-xs font-bold text-red-400"></p>
+            <button id="login-btn" class="on-accent w-full bg-gradient-to-r from-skai-primary to-blue-600 hover:from-sky-500 hover:to-blue-700 text-white font-bold py-3 rounded-xl"><i class="fa-solid fa-right-to-bracket mr-2"></i><span data-i18n="login_btn">Sign in</span></button>
+        </form>
+        <div class="mt-6 border-t border-slate-700/60 pt-4">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2" data-i18n="login_demo">Demo accounts</p>
+            <div id="login-demo" class="flex flex-wrap gap-1.5"></div>
+            <p class="text-[11px] text-slate-500 mt-2"><span data-i18n="login_demo_pw">Demo password:</span> <code class="text-slate-300">SkaiDemo2026!</code></p>
+        </div>
+        <button onclick="SKAI.home()" class="mt-5 text-xs text-slate-400 hover:text-white"><i class="fa-solid fa-arrow-left mr-1"></i><span data-i18n="back">Back</span></button>
+    </div>
+</section>
+
 <!-- ===================== WORKSPACE (clinician + patient) ===================== -->
 <section id="view-work" class="hidden min-h-screen flex-col md:flex-row">
 
@@ -109,6 +140,19 @@
                 <button id="mode-lifestyle" onclick="SKAI.setMode('lifestyle')" class="px-3 py-1.5 rounded-lg text-slate-300" data-i18n="mode_lifestyle">Lifestyle check</button>
             </div>
             <div class="ml-auto flex items-center gap-2">
+                <div id="doctor-menu" class="hidden relative">
+                    <button onclick="SKAI.toggleDoctorMenu()" class="flex items-center gap-2 bg-slate-900/70 border border-slate-800 rounded-full pl-1 pr-3 py-1 hover:border-skai-primary">
+                        <span id="doctor-avatar"></span><span id="doctor-name" class="text-xs font-bold text-white hidden sm:inline"></span><i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+                    </button>
+                    <div id="doctor-dropdown" class="hidden absolute right-0 mt-2 w-60 glass-card rounded-2xl p-2 z-50 text-sm">
+                        <div class="px-3 py-2 border-b border-slate-700/60 mb-1"><p id="doctor-dd-name" class="font-bold text-white"></p><p id="doctor-dd-title" class="text-[11px] text-slate-400"></p></div>
+                        <label class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer text-slate-200"><i class="fa-solid fa-camera w-4 text-skai-primary"></i><span data-i18n="dr_change_photo">Change photo</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="SKAI.doctorPhoto(this.files[0]); this.value = ''"></label>
+                        <button onclick="SKAI.openPasswordChange()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 text-left"><i class="fa-solid fa-key w-4 text-skai-primary"></i><span data-i18n="pw_title">Change password</span></button>
+                        <button onclick="SKAI.openActivity()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-200 text-left"><i class="fa-solid fa-clock-rotate-left w-4 text-skai-primary"></i><span data-i18n="activity_title">Activity log</span></button>
+                        <button onclick="SKAI.logout()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 text-red-400 text-left"><i class="fa-solid fa-right-from-bracket w-4"></i><span data-i18n="sign_out">Sign out</span></button>
+                    </div>
+                </div>
                 <select aria-label="Language" class="lang-select bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5 focus:outline-none cursor-pointer"></select>
                 <button onclick="SKAI.toggleTheme()" class="theme-toggle text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" aria-label="Theme"><i class="fa-solid fa-moon"></i></button>
                 <button onclick="SKAI.home()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full hover:bg-slate-800" title="Home"><i class="fa-solid fa-right-from-bracket"></i></button>

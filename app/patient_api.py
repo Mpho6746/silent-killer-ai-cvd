@@ -15,18 +15,19 @@ clinic document records - smoking and family history - are self-declared.
     DELETE /api/patients/{id}/medications/{mid}       stop a medication
     POST   /api/patients/{id}/medications/{mid}/doses mark a dose taken / not taken
     POST   /api/patients/{id}/checkins                today's check-in (mood, activity, water, symptoms)
-    GET    /api/documents/{id}/file                   the original PDF (for clinician review)
-    POST   /api/documents/{id}/review                 clinician approves or rejects a pending document
+    GET    /api/documents/{id}/file                   the original PDF (signed-in clinicians only)
+    POST   /api/documents/{id}/review                 clinician approves or rejects a pending document (signed in)
 """
 import re
 from datetime import date
 from typing import Literal, Optional
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.advice import advice_for, bmi, next_checkup
+from app.auth import require_clinician
 from app.documents import MAX_BYTES, read_document, sha256
 from app.storage import today
 
@@ -148,7 +149,7 @@ async def upload_document(patient_id: str, request: Request, file: UploadFile = 
 
 
 @router.get("/api/documents/{document_id}/file")
-def document_file(document_id: int, request: Request):
+def document_file(document_id: int, request: Request, clinician=Depends(require_clinician)):
     doc = _store(request).get_document(document_id, with_content=True)
     if not doc:
         raise HTTPException(404, "Document not found")
@@ -157,14 +158,15 @@ def document_file(document_id: int, request: Request):
 
 
 @router.post("/api/documents/{document_id}/review")
-def review_document(document_id: int, review: Review, request: Request):
+def review_document(document_id: int, review: Review, request: Request, clinician=Depends(require_clinician)):
     store = _store(request)
     doc = store.get_document(document_id)
     if not doc:
         raise HTTPException(404, "Document not found")
     if doc["status"] != "pending_review":
         raise HTTPException(409, f"Document is already {doc['status']}")
-    store.review_document(document_id, review.approve)
+    store.review_document(document_id, review.approve, reviewer=clinician["id"])
+    store.log(clinician["id"], "review_approve" if review.approve else "review_reject", doc["patient_id"])
     return store.get_document(document_id)
 
 

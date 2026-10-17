@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 os.environ["SKAI_DB"] = ":memory:"
 
 from app.api import app  # noqa: E402
+from app.auth import DEMO_PASSWORD  # noqa: E402
 from app.documents import read_document  # noqa: E402
 
 SAMPLES = Path(__file__).resolve().parent.parent / "sample_documents"
@@ -65,6 +66,9 @@ def test_not_a_pdf():
 @pytest.fixture(scope="module")
 def client():
     with TestClient(app) as c:
+        # Clinician endpoints need a signed-in clinician; patient endpoints ignore the header
+        token = c.post("/api/auth/login", json={"username": "samuel.olajide", "password": DEMO_PASSWORD}).json()["token"]
+        c.headers["Authorization"] = f"Bearer {token}"
         yield c
 
 

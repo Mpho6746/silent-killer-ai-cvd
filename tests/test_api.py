@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 os.environ["SKAI_DB"] = ":memory:"   # never touch the real patient database
 
 from app.api import app  # noqa: E402
+from app.auth import DEMO_PASSWORD  # noqa: E402
 
 HIGH_RISK = dict(age=65, sex=1, cp=0, trestbps=160, chol=280, fbs=1, restecg=0,
                  thalach=110, exang=1, oldpeak=3.0, slope=1, ca=3, thal=3)
@@ -19,6 +20,9 @@ SMOKER = dict(age=45, sbp=150, cigarettes_per_day=10, years_smoked=2, family_his
 @pytest.fixture(scope="module")
 def client():
     with TestClient(app) as c:
+        # Clinician endpoints need a signed-in clinician; patient endpoints ignore the header
+        token = c.post("/api/auth/login", json={"username": "samuel.olajide", "password": DEMO_PASSWORD}).json()["token"]
+        c.headers["Authorization"] = f"Bearer {token}"
         yield c
 
 

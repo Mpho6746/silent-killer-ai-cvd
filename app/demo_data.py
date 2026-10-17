@@ -29,24 +29,26 @@ def seed(store, clinical, lifestyle):
     inputs = rows.drop(columns="target").to_dict(orient="records")
     probs = pd.Series([clinical.predict(r) for r in inputs], index=rows.index)
 
-    def record(pid, name, sex, kind, model, patient_inputs, when):
+    def record(pid, name, sex, kind, model, patient_inputs, when, by=None):
         store.upsert_patient(pid, name, sex, created_at=days_ago(120))
         result = model.assess(patient_inputs)
-        store.add_assessment(pid, kind, patient_inputs, result["probability"], result["tier"], created_at=when)
+        store.add_assessment(pid, kind, patient_inputs, result["probability"], result["tier"], created_at=when, created_by=by)
+        if by:
+            store.log(by, "assess", pid, at=when)
 
     # Rising risk: blood pressure and cholesterol climbed since the last visit
     thabo = _pick(rows, probs, 1, 0.95)
     earlier = {**thabo, "trestbps": max(thabo["trestbps"] - 30, 100), "chol": max(thabo["chol"] - 60, 150),
                "exang": 0, "oldpeak": max(thabo["oldpeak"] - 1.5, 0.0)}
-    record("DEMO-001", "Thabo Ndlovu", "M", "clinical", clinical, earlier, days_ago(75))
-    record("DEMO-001", "Thabo Ndlovu", "M", "clinical", clinical, thabo, days_ago(2))
+    record("DEMO-001", "Thabo Ndlovu", "M", "clinical", clinical, earlier, days_ago(75), by="sfiso.kekana")
+    record("DEMO-001", "Thabo Ndlovu", "M", "clinical", clinical, thabo, days_ago(2), by="samuel.olajide")
 
     # High risk, last seen 45 days ago: follow-up overdue
-    record("DEMO-002", "Sipho Mokoena", "M", "clinical", clinical, _pick(rows, probs, 1, 0.80), days_ago(45))
+    record("DEMO-002", "Sipho Mokoena", "M", "clinical", clinical, _pick(rows, probs, 1, 0.80), days_ago(45), by="tshiamo.bokaba")
 
-    record("DEMO-003", "Sarah Venter", "F", "clinical", clinical, _pick(rows, probs, 0, 0.75), days_ago(6))
-    record("DEMO-004", "Pieter Botha", "M", "clinical", clinical, _pick(rows, probs, 1, 0.45), days_ago(12))
-    record("DEMO-005", "Lerato Dlamini", "F", "clinical", clinical, _pick(rows, probs, 0, 0.10), days_ago(20))
+    record("DEMO-003", "Sarah Venter", "F", "clinical", clinical, _pick(rows, probs, 0, 0.75), days_ago(6), by="mpho.mutengwe")
+    record("DEMO-004", "Pieter Botha", "M", "clinical", clinical, _pick(rows, probs, 1, 0.45), days_ago(12), by="kamogelo")
+    record("DEMO-005", "Lerato Dlamini", "F", "clinical", clinical, _pick(rows, probs, 0, 0.10), days_ago(20), by="neontle")
 
     if SAMPLES.exists():
         seed_patients(store, lifestyle)
@@ -71,7 +73,7 @@ def seed_patients(store, lifestyle):
     # signed report after he stopped smoking. Medications and check-ins included.
     store.upsert_patient("DEMO-101", "John Doe", "M", created_at=days_ago(120), dob="1979-03-14")
     older = _upload(store, "DEMO-101", "John Doe", "john_doe_older_unsigned.pdf", days_ago(98))
-    store.review_document(older, approve=True)
+    store.review_document(older, approve=True, reviewer="mpho.mutengwe")
     _self_check(store, lifestyle, "DEMO-101", older,
                 {"cigarettes_per_day": 12, "years_smoked": 3, "family_history": True}, days_ago(97))
     verified = _upload(store, "DEMO-101", "John Doe", "john_doe_verified.pdf", days_ago(12))

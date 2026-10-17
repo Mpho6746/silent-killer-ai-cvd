@@ -104,7 +104,10 @@ This is a prototype trained on a single, static ~300-row dataset — see the "Sc
 
 A web app (FastAPI backend + HTML/JS front end) built on the trained models. Every number it shows comes from the models; nothing is simulated.
 
-**Clinician dashboard**
+**Clinician dashboard** (sign-in required)
+- **Clinician accounts** ([app/auth.py](app/auth.py)): each doctor signs in, and every clinical action (opening a patient, saving an assessment, approving a document) is recorded under their name in an **activity log**. Assessments and the triage queue show which doctor last assessed each patient. Doctors can add a **profile picture** and change their password.
+  - Passwords are stored only as salted PBKDF2-SHA256 hashes; the database keeps a hash of each session token, not the token. Sessions last 8 hours, and 5 wrong passwords lock an account for 5 minutes.
+  - Demo accounts: `samuel.olajide`, `sfiso.kekana`, `mpho.mutengwe`, `tshiamo.bokaba`, `kamogelo`, `neontle`, all with the password `SkaiDemo2026!`.
 - **Triage queue**: every patient's latest risk, sorted so the most urgent come first, with proactive alerts: *High risk*, *Rising* (risk up 10+ points since the last assessment) and *Follow-up due* (high-risk patient not re-assessed in 30 days).
 - **Clinical assessment** with the tuned Random Forest: risk %, risk tier and a per-patient SHAP chart of what drives the result.
 - **What-if sliders** (BP, cholesterol, max heart rate, ST depression) that re-run the model live.
@@ -153,6 +156,9 @@ Only smoking and family history are self-declared, because no clinic document re
 | `POST /api/patients/{id}/self-check` | patient risk check using document vitals only |
 | `GET /api/patients/{id}/dashboard` | everything the patient home screen needs, including advice |
 | `POST /api/documents/{id}/review` | clinician approves or rejects a pending document |
+| `POST /api/auth/login`, `/logout`, `GET /api/auth/me` | clinician sign-in (returns a bearer token) |
+| `GET /api/audit` | activity log: who did what, when |
+| `PUT /api/clinicians/me/photo`, `/password` | doctor profile picture and password |
 | medications, doses, check-ins, profile, photo | see [app/patient_api.py](app/patient_api.py) |
 
 ## How to Run
@@ -216,6 +222,7 @@ app/
   risk_models.py              both models: prediction, SHAP drivers, what-if, risk-reduction plans
   storage.py                  SQLite patients/assessments + triage queue and alerts
   report.py                   PDF report
+  auth.py                     clinician accounts, sessions, audit log, demo doctors
   patient_api.py              patient health-tracker endpoints
   documents.py                reads and verifies uploaded clinical PDFs
   trusted_issuers.json        public keys of issuers whose signatures are trusted
@@ -224,7 +231,7 @@ app/
   web/                        index.html, theme.css, app.js (clinician), patient.js (health tracker), i18n.js (11 languages)
   streamlit_app.py            backup Streamlit tool
   utils.py, translations.py   shared risk tiers; Streamlit translations
-tests/                        API, document-verification and translation tests
+tests/                        API, sign-in/security, document-verification and translation tests
 scripts/make_demo_documents.py  creates the fictional demo issuer and sample PDFs
 sample_documents/             sample clinical PDFs for the demo and tests
 run_app.py                    starts the web app
