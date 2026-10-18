@@ -158,6 +158,19 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def always_fresh_app_files(request, call_next):
+    """
+    Browsers must check for a newer index.html / *.js / *.css on every visit
+    (an unchanged file costs a tiny "304 Not Modified"). Otherwise, after an
+    update, a browser can mix a new page with its old saved scripts.
+    """
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}

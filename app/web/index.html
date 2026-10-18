@@ -21,7 +21,7 @@
             }
         }
     </script>
-    <link href="theme.css" rel="stylesheet">
+    <link href="theme.css?v=20261018" rel="stylesheet">
     <script>
         // Apply the saved (or system) theme before the page paints
         (function () {
@@ -444,9 +444,10 @@
 <!-- health advice pop-up -->
 <div id="advice-pop" class="hidden fixed bottom-4 right-4 z-[80] max-w-sm w-[calc(100%-2rem)]"></div>
 
-<script src="i18n.js"></script>
-<script src="app.js"></script>
-<script src="patient.js"></script>
-    <script src="staff.js"></script>
+<!-- ?v= forces browsers to drop copies saved before 18 Oct 2026; the server now sends Cache-Control: no-cache -->
+<script src="i18n.js?v=20261018"></script>
+<script src="app.js?v=20261018"></script>
+<script src="patient.js?v=20261018"></script>
+    <script src="staff.js?v=20261018"></script>
 </body>
 </html>
