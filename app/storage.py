@@ -253,6 +253,22 @@ class Store:
         profile["has_account"] = row["password_hash"] is not None
         return profile
 
+    def resolve_patient_id(self, typed):
+        """
+        The stored patient ID for what someone typed at sign-in. Exact match first;
+        otherwise ignore capitals, spaces and dashes ("demo 101" -> "DEMO-101"),
+        but only if that points to exactly one patient.
+        """
+        typed = (typed or "").strip()
+        if self.conn.execute("SELECT 1 FROM patients WHERE id = ?", (typed,)).fetchone():
+            return typed
+        key = typed.upper().replace(" ", "").replace("-", "")
+        if not key:
+            return typed
+        rows = self.conn.execute(
+            "SELECT id FROM patients WHERE REPLACE(REPLACE(UPPER(id), ' ', ''), '-', '') = ?", (key,)).fetchall()
+        return rows[0][0] if len(rows) == 1 else typed
+
     def get_patient_credentials(self, patient_id):
         row = self.conn.execute("SELECT id, name, password_hash, failed_attempts, locked_until FROM patients WHERE id = ?",
                                 (patient_id,)).fetchone()

@@ -128,16 +128,12 @@ const SKAI = (() => {
     }
 
     // ---------- sign-in ----------
-    const DEMO_DOCTORS = ['samuel.olajide', 'sfiso.kekana', 'mpho.mutengwe', 'tshiamo.bokaba', 'kamogelo', 'neontle',
-                          'nurse.thandi', 'nurse.lindiwe', 'manager.district'];
 
     function showLogin() {
         moveAdvisor(false);
         showView('view-login');
         $('login-error').classList.add('hidden');
         $('login-pass').value = '';
-        $('login-demo').innerHTML = DEMO_DOCTORS.map(u =>
-            `<button type="button" onclick="SKAI.fillLogin('${u}')" class="chip bg-slate-800 border border-slate-600 text-slate-200 hover:border-skai-primary !text-[11px] !py-1">${u}</button>`).join('');
         setTimeout(() => ($('login-user').value ? $('login-pass') : $('login-user')).focus(), 50);
     }
 

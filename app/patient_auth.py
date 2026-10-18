@@ -30,8 +30,11 @@ from app.facilities import require, require_visible
 
 router = APIRouter()
 
-DEMO_PATIENT_PASSWORD = "SkaiPatient2026!"
-DEMO_PATIENTS = ["DEMO-101", "DEMO-102"]
+# Demo patient app accounts. Not shown anywhere in the app: share them with the team directly.
+DEMO_PATIENT_PASSWORDS = {"DEMO-101": "JohnDoe2026", "DEMO-102": "Nomvula2026"}
+DEMO_PATIENTS = list(DEMO_PATIENT_PASSWORDS)
+DEMO_PATIENT_PASSWORD = DEMO_PATIENT_PASSWORDS["DEMO-101"]
+OLD_DEMO_PATIENT_PASSWORD = "SkaiPatient2026!"     # replaced in databases created before October 18
 CODE_HOURS = 24
 CODE_TRIES = 5
 ID_PATTERN = r"^[A-Za-z0-9_-]{1,40}$"
@@ -50,8 +53,9 @@ def seed_patient_accounts(store):
     """Gives the demo health-tracker patients a password (only if they don't have one yet)."""
     for pid in DEMO_PATIENTS:
         creds = store.get_patient_credentials(pid)
-        if creds and not creds["password_hash"]:
-            store.update_patient_credentials(pid, password_hash=hash_password(DEMO_PATIENT_PASSWORD))
+        if creds and (not creds["password_hash"] or verify_password(OLD_DEMO_PATIENT_PASSWORD, creds["password_hash"])):
+            store.update_patient_credentials(pid, password_hash=hash_password(DEMO_PATIENT_PASSWORDS[pid]),
+                                             failed_attempts=0, locked_until=None)
         if creds and not (store.get_profile(pid) or {}).get("consent_at"):
             record_consent(store, pid)          # demo accounts count as having agreed to the notice
 
@@ -151,7 +155,7 @@ def register(body: Register, request: Request):
 @router.post("/api/patient-auth/login")
 def login(body: Login, request: Request):
     store = request.app.state.store
-    creds = store.get_patient_credentials(body.patient_id.strip())
+    creds = store.get_patient_credentials(store.resolve_patient_id(body.patient_id))
     now = _now()
     if creds and creds["locked_until"] and datetime.fromisoformat(creds["locked_until"]) > now:
         raise HTTPException(429, detail={"code": "locked"})
@@ -170,7 +174,7 @@ def activate(body: Activate, request: Request):
     store = request.app.state.store
     if not body.consent:
         raise HTTPException(422, detail={"code": "consent_required"})
-    pid = body.patient_id.strip()
+    pid = store.resolve_patient_id(body.patient_id)
     code = store.get_activation_code(pid)
     valid = (code and code["attempts"] < CODE_TRIES
              and datetime.fromisoformat(code["expires_at"]) > _now()

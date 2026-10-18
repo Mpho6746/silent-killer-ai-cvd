@@ -10,7 +10,7 @@ os.environ["SKAI_DB"] = ":memory:"
 from app.api import app  # noqa: E402
 from app.auth import DEMO_PASSWORD  # noqa: E402
 from app.interop import luhn_ok, parse_sa_id  # noqa: E402
-from app.patient_auth import DEMO_PATIENT_PASSWORD  # noqa: E402
+from app.patient_auth import DEMO_PATIENT_PASSWORDS  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -25,7 +25,7 @@ def staff(client, username):
 
 
 def patient(client, pid="DEMO-101"):
-    token = client.post("/api/patient-auth/login", json={"patient_id": pid, "password": DEMO_PATIENT_PASSWORD}).json()["token"]
+    token = client.post("/api/patient-auth/login", json={"patient_id": pid, "password": DEMO_PATIENT_PASSWORDS[pid]}).json()["token"]
     return {"Authorization": f"Bearer {token}"}
 
 

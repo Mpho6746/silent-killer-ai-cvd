@@ -8,7 +8,7 @@ os.environ["SKAI_DB"] = ":memory:"
 
 from app.api import app  # noqa: E402
 from app.auth import DEMO_PASSWORD  # noqa: E402
-from app.patient_auth import DEMO_PATIENT_PASSWORD  # noqa: E402
+from app.patient_auth import DEMO_PATIENT_PASSWORD, DEMO_PATIENT_PASSWORDS  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -21,7 +21,8 @@ def bearer(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def patient_login(client, pid="DEMO-101", password=DEMO_PATIENT_PASSWORD):
+def patient_login(client, pid="DEMO-101", password=None):
+    password = password or DEMO_PATIENT_PASSWORDS.get(pid, DEMO_PATIENT_PASSWORD)
     return client.post("/api/patient-auth/login", json={"patient_id": pid, "password": password})
 
 
@@ -112,3 +113,24 @@ def test_logout_ends_patient_session(client):
     assert client.get("/api/patient-auth/me", headers=h).status_code == 200
     client.post("/api/patient-auth/logout", headers=h)
     assert client.get("/api/patient-auth/me", headers=h).status_code == 401
+
+
+def test_patient_id_is_forgiving(client):
+    """Phones change capitals and people drop the dash: all of these are John's ID."""
+    from app.patient_auth import DEMO_PATIENT_PASSWORDS
+    for typed in ["DEMO-101", "demo-101", "Demo-101", " DEMO 101 ", "demo101"]:
+        r = client.post("/api/patient-auth/login", json={"patient_id": typed, "password": DEMO_PATIENT_PASSWORDS["DEMO-101"]})
+        assert r.status_code == 200 and r.json()["profile"]["id"] == "DEMO-101", typed
+    assert client.post("/api/patient-auth/login", json={"patient_id": "DEMO-102", "password": DEMO_PATIENT_PASSWORDS["DEMO-102"]}).status_code == 200
+
+
+def test_old_demo_password_is_replaced():
+    from app.auth import hash_password, verify_password
+    from app.patient_auth import DEMO_PATIENT_PASSWORDS, OLD_DEMO_PATIENT_PASSWORD, seed_patient_accounts
+    from app.storage import Store
+    store = Store(":memory:")
+    store.upsert_patient("DEMO-101", "John Doe", "M", dob="1979-03-14")
+    store.update_patient_credentials("DEMO-101", password_hash=hash_password(OLD_DEMO_PATIENT_PASSWORD))
+    seed_patient_accounts(store)
+    new_hash = store.get_patient_credentials("DEMO-101")["password_hash"]
+    assert verify_password(DEMO_PATIENT_PASSWORDS["DEMO-101"], new_hash) and not verify_password(OLD_DEMO_PATIENT_PASSWORD, new_hash)
