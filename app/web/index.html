@@ -132,8 +132,13 @@
         <header class="glass border-b border-slate-800 px-4 md:px-6 py-3 flex flex-wrap items-center gap-3 sticky top-0 z-30">
             <h2 id="patient-brand" class="hidden text-lg font-extrabold items-center gap-2"><i class="fa-solid fa-leaf text-skai-secondary"></i> SKAI</h2>
             <nav class="flex bg-slate-900/70 rounded-xl p-1 border border-slate-800 text-xs font-bold">
+                <button id="tab-triage" onclick="SKAI.showTab('triage')" class="hidden px-3 py-1.5 rounded-lg text-slate-300"><i class="fa-solid fa-hospital-user mr-1"></i>Waiting room</button>
                 <button id="tab-assess" onclick="SKAI.showTab('assess')" class="px-3 py-1.5 rounded-lg tab-active"><i class="fa-solid fa-notes-medical mr-1"></i><span data-i18n="nav_assess">Assessment</span></button>
                 <button id="tab-models" onclick="SKAI.showTab('models')" class="px-3 py-1.5 rounded-lg text-slate-300"><i class="fa-solid fa-scale-balanced mr-1"></i><span data-i18n="nav_models">Model &amp; bias</span></button>
+                <button id="tab-bookings" onclick="SKAI.showTab('bookings')" class="hidden px-3 py-1.5 rounded-lg text-slate-300"><i class="fa-solid fa-calendar-check mr-1"></i>Bookings</button>
+                <button id="tab-referrals" onclick="SKAI.showTab('referrals')" class="hidden px-3 py-1.5 rounded-lg text-slate-300"><i class="fa-solid fa-share-nodes mr-1"></i>Referrals</button>
+                <button id="tab-outbox" onclick="SKAI.showTab('outbox')" class="hidden px-3 py-1.5 rounded-lg text-slate-300"><i class="fa-solid fa-comment-sms mr-1"></i>Reminders</button>
+                <button id="tab-monitoring" onclick="SKAI.showTab('monitoring')" class="hidden px-3 py-1.5 rounded-lg text-slate-300"><i class="fa-solid fa-chart-pie mr-1"></i>Monitoring</button>
             </nav>
             <div id="mode-toggle" class="flex bg-slate-900/70 rounded-xl p-1 border border-slate-800 text-xs font-bold">
                 <button id="mode-clinical" onclick="SKAI.setMode('clinical')" class="px-3 py-1.5 rounded-lg tab-active" data-i18n="mode_clinical">Clinical assessment</button>
@@ -159,6 +164,13 @@
             </div>
         </header>
 
+        <!-- ===== Staff tabs (filled by staff.js) ===== -->
+        <div id="panel-triage" class="hidden p-4 md:p-6 space-y-5"></div>
+        <div id="panel-bookings" class="hidden p-4 md:p-6 space-y-5"></div>
+        <div id="panel-referrals" class="hidden p-4 md:p-6 space-y-5"></div>
+        <div id="panel-outbox" class="hidden p-4 md:p-6 space-y-5"></div>
+        <div id="panel-monitoring" class="hidden p-4 md:p-6 space-y-5"></div>
+
         <!-- ===== Assessment tab ===== -->
         <div id="panel-assess" class="p-4 md:p-6 grid xl:grid-cols-5 gap-5">
             <!-- form -->
@@ -175,6 +187,11 @@
                     <div id="app-access" class="hidden mt-3 pt-3 border-t border-slate-700/60 flex flex-wrap items-center gap-2">
                         <span id="app-access-status" class="chip"></span>
                         <button onclick="SKAI.issueActivationCode()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-mobile-screen-button text-skai-secondary mr-1"></i><span data-i18n="code_btn">Give app access code</span></button>
+                        <button id="btn-book" onclick="SKAI.bookPatient()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-calendar-plus text-skai-primary mr-1"></i>Book</button>
+                        <button id="btn-refer" onclick="SKAI.referPatient()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-share-from-square text-skai-primary mr-1"></i>Refer</button>
+                        <button id="btn-labs" onclick="SKAI.patientAction('labs')" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-flask-vial text-skai-primary mr-1"></i>Import labs</button>
+                        <button onclick="SKAI.patientAction('fhir')" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-file-export text-skai-primary mr-1"></i>FHIR</button>
+                        <button id="btn-outcome" onclick="SKAI.patientAction('outcome')" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-clipboard-check text-skai-primary mr-1"></i>Outcome</button>
                     </div>
                 </div>
 
@@ -311,6 +328,9 @@
                 <div><label class="field-label" for="pt-new-pass" data-i18n="pt_new_password">Choose a password</label><input id="pt-new-pass" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required></div>
                 <div><label class="field-label" for="pt-new-pass2" data-i18n="pt_confirm_password">Confirm password</label><input id="pt-new-pass2" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required></div>
                 <p class="col-span-2 text-[11px] text-slate-500" data-i18n="pt_password_rule">At least 8 characters. Never share it.</p>
+                <label class="col-span-2 flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer"><input id="pt-new-consent" type="checkbox" class="accent-teal-500 mt-0.5" required>
+                    <span><span data-i18n="consent_label">I agree that SKAI may keep my health information to estimate my heart risk and share it with my clinic.</span>
+                    <button type="button" onclick="SKAI.patient.openPrivacy()" class="text-skai-secondary font-bold underline" data-i18n="privacy_link">Read the privacy notice</button></span></label>
                 <p id="pt-create-error" class="col-span-2 hidden text-xs font-bold text-red-400"></p>
                 <button class="on-accent col-span-2 bg-gradient-to-r from-skai-secondary to-emerald-500 text-white font-bold py-3 rounded-xl" data-i18n="pt_create">Create profile</button>
             </form>
@@ -321,6 +341,9 @@
                 <div><label class="field-label" for="pt-act-code" data-i18n="pt_code">6-digit code</label><input id="pt-act-code" class="field tracking-[0.3em] font-bold" inputmode="numeric" pattern="\d{6}" maxlength="6" required></div>
                 <div><label class="field-label" for="pt-act-pass" data-i18n="pt_new_password">Choose a password</label><input id="pt-act-pass" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required></div>
                 <div><label class="field-label" for="pt-act-pass2" data-i18n="pt_confirm_password">Confirm password</label><input id="pt-act-pass2" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required></div>
+                <label class="col-span-2 flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer"><input id="pt-act-consent" type="checkbox" class="accent-teal-500 mt-0.5" required>
+                    <span><span data-i18n="consent_label">I agree that SKAI may keep my health information to estimate my heart risk and share it with my clinic.</span>
+                    <button type="button" onclick="SKAI.patient.openPrivacy()" class="text-skai-secondary font-bold underline" data-i18n="privacy_link">Read the privacy notice</button></span></label>
                 <p id="pt-activate-error" class="col-span-2 hidden text-xs font-bold text-red-400"></p>
                 <button class="on-accent col-span-2 bg-gradient-to-r from-skai-secondary to-emerald-500 text-white font-bold py-3 rounded-xl" data-i18n="pt_activate_btn">Activate my account</button>
             </form>
@@ -347,8 +370,12 @@
             <div class="relative flex flex-wrap gap-2">
                 <button onclick="SKAI.patient.openUpload()" class="on-accent bg-skai-secondary hover:bg-teal-500 text-white text-sm font-bold px-4 py-2.5 rounded-xl"><i class="fa-solid fa-file-arrow-up mr-2"></i><span data-i18n="pt_upload_btn">Upload results</span></button>
                 <button onclick="SKAI.patient.openSelfCheck()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm font-bold px-4 py-2.5 rounded-xl"><i class="fa-solid fa-heart-circle-check text-skai-secondary mr-2"></i><span data-i18n="pt_check_btn">Update my check</span></button>
+                <button onclick="SKAI.patient.openSettings()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm font-bold px-3 py-2.5 rounded-xl" data-i18n-title="pt_settings" title="Privacy and reminders"><i class="fa-solid fa-user-shield text-skai-secondary"></i></button>
             </div>
         </div>
+
+        <!-- referral and appointments (only when there are any) -->
+        <div id="pt-care" class="hidden grid md:grid-cols-2 gap-5"></div>
 
         <div class="grid lg:grid-cols-3 gap-5">
             <!-- risk -->
@@ -422,5 +449,6 @@
 <script src="i18n.js"></script>
 <script src="app.js"></script>
 <script src="patient.js"></script>
+    <script src="staff.js"></script>
 </body>
 </html>

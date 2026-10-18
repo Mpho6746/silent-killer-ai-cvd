@@ -66,7 +66,7 @@ const SKAI = (() => {
 
     function t(key, vars = {}) {
         const dict = window.SKAI_I18N;
-        let s = (dict[state.lang] && dict[state.lang][key]) || dict.en[key] || key;
+        let s = (dict[state.lang] && dict[state.lang][key]) || dict.en[key] || (window.SKAI_STAFF_TEXT || {})[key] || key;
         for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
         return s;
     }
@@ -128,7 +128,8 @@ const SKAI = (() => {
     }
 
     // ---------- sign-in ----------
-    const DEMO_DOCTORS = ['samuel.olajide', 'sfiso.kekana', 'mpho.mutengwe', 'tshiamo.bokaba', 'kamogelo', 'neontle'];
+    const DEMO_DOCTORS = ['samuel.olajide', 'sfiso.kekana', 'mpho.mutengwe', 'tshiamo.bokaba', 'kamogelo', 'neontle',
+                          'nurse.thandi', 'nurse.lindiwe', 'manager.district'];
 
     function showLogin() {
         moveAdvisor(false);
@@ -160,7 +161,7 @@ const SKAI = (() => {
             session.set(r.token, r.clinician);
             $('login-pass').value = '';
             toast(t('signed_in_as', { name: r.clinician.name }), 'success');
-            openWorkspace('clinician');
+            openWorkspace('clinician', r.clinician.role === 'nurse' ? 'triage' : 'assess');
         } catch (e) {
             const key = { locked: 'login_locked', login_failed: 'login_failed' }[e.message];
             $('login-error').textContent = key ? t(key) : `${t('error_generic')} (${e.message})`;
@@ -191,7 +192,7 @@ const SKAI = (() => {
         $('doctor-avatar').innerHTML = avatarHtml(c);
         $('doctor-name').textContent = c.name;
         $('doctor-dd-name').textContent = c.name;
-        $('doctor-dd-title').textContent = c.title || '';
+        $('doctor-dd-title').textContent = [c.title, c.facility_name].filter(Boolean).join(' · ');
     }
 
     function toggleDoctorMenu() { $('doctor-dropdown').classList.toggle('hidden'); }
@@ -286,12 +287,33 @@ const SKAI = (() => {
             <button onclick="SKAI.closeModal()" class="mt-4 w-full bg-slate-800 border border-slate-600 font-bold py-2.5 rounded-xl text-sm">${t('pt_close')}</button>`);
     }
 
+    // Saves a file the page has fetched. Inside the SKAI Android app a web page cannot download
+    // files itself, so the app provides window.SKAIAndroid.saveFile (saves to Downloads and opens it).
+    function saveBlob(blob, filename, open = false) {
+        if (window.SKAIAndroid) {
+            const reader = new FileReader();
+            reader.onload = () => window.SKAIAndroid.saveFile(filename, blob.type || 'application/octet-stream',
+                                                              reader.result.split(',')[1]);
+            reader.readAsDataURL(blob);
+            return;
+        }
+        const url = URL.createObjectURL(blob);
+        if (open) window.open(url, '_blank', 'noopener');
+        else {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+
     // Documents need the clinician's session, so they are fetched with it rather than linked directly
     async function viewDocument(id) {
         const res = await fetch(`${API_BASE}/api/documents/${id}/file`, { headers: { Authorization: `Bearer ${session.token}` } });
         if (res.status === 401) { sessionExpired(); return; }
         if (!res.ok) { toast(t('error_generic'), 'error'); return; }
-        window.open(URL.createObjectURL(await res.blob()), '_blank', 'noopener');
+        saveBlob(await res.blob(), `document_${id}.pdf`, true);
     }
 
     function chart(id, config) {
@@ -389,12 +411,21 @@ const SKAI = (() => {
         showView('view-home');
     }
 
+    // Staff-only tabs (waiting room, bookings, referrals, outbox) live in staff.js
+    const STAFF_TABS = ['triage', 'bookings', 'referrals', 'outbox', 'monitoring'];
     function showTab(tab) {
-        $('panel-assess').classList.toggle('hidden', tab !== 'assess');
-        $('panel-models').classList.toggle('hidden', tab !== 'models');
-        $('tab-assess').className = `px-3 py-1.5 rounded-lg ${tab === 'assess' ? 'tab-active' : 'text-slate-300'}`;
-        $('tab-models').className = `px-3 py-1.5 rounded-lg ${tab === 'models' ? 'tab-active' : 'text-slate-300'}`;
+        const staff = state.role === 'clinician';
+        const monitoring = staff && SKAI.staff && SKAI.staff.can('dashboard');
+        if ((!staff && STAFF_TABS.includes(tab)) || (tab === 'monitoring' && !monitoring)) tab = 'assess';
+        for (const name of ['assess', 'models', ...STAFF_TABS]) {
+            $(`panel-${name}`).classList.toggle('hidden', tab !== name);
+            const btn = $(`tab-${name}`);
+            btn.classList.toggle('hidden', (STAFF_TABS.includes(name) && !staff) || (name === 'monitoring' && !monitoring));
+            btn.className = `px-3 py-1.5 rounded-lg ${tab === name ? 'tab-active' : 'text-slate-300'}${btn.classList.contains('hidden') ? ' hidden' : ''}`;
+        }
+        $('mode-toggle').classList.toggle('hidden', !staff || tab !== 'assess');
         if (tab === 'models') renderModels();
+        if (SKAI.staff) SKAI.staff.render(tab);
     }
 
     function setMode(mode) {
@@ -745,11 +776,7 @@ const SKAI = (() => {
         const res = await fetch(`${API_BASE}/api/assessments/${assessmentId}/report.pdf`, { headers: authHeader() });
         if (!res.ok) { toast(t('error_generic'), 'error'); return; }
         const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(await res.blob());
-        link.download = name ? name[1] : 'SKAI_report.pdf';
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+        saveBlob(await res.blob(), name ? name[1] : 'SKAI_report.pdf');
     }
 
     // ---------- patient app access (clinic-registered patients) ----------
@@ -759,6 +786,22 @@ const SKAI = (() => {
         if (!p) return;
         $('app-access-status').className = `chip ${p.has_account ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`;
         $('app-access-status').textContent = t(p.has_account ? 'code_has_account' : 'code_no_account');
+        $('btn-book').classList.toggle('hidden', !SKAI.staff.can('book'));
+        $('btn-refer').classList.toggle('hidden', !SKAI.staff.can('refer'));
+        $('btn-outcome').classList.toggle('hidden', !SKAI.staff.can('record_outcome'));
+        $('btn-labs').classList.toggle('hidden', !SKAI.staff.can('assess'));
+    }
+
+    function patientAction(action) {
+        const p = state.patient;
+        ({ outcome: () => SKAI.staff.openOutcome(p.id, p.name), fhir: () => SKAI.staff.exportFhir(p.id),
+           labs: () => SKAI.staff.openFhirImport(p.id, p.name) })[action]();
+    }
+
+    function bookPatient() { SKAI.staff.openBook(state.patient.id, state.patient.name); }
+    function referPatient() {
+        const latest = state.patient.assessments[state.patient.assessments.length - 1];
+        SKAI.staff.openRefer(state.patient.id, state.patient.name, latest ? `${pct(latest.probability)} (${latest.tier})` : '');
     }
 
     async function issueActivationCode() {
@@ -958,13 +1001,13 @@ const SKAI = (() => {
     // Shared helpers for patient.js
     const core = {
         state, api, t, toast, chart, pct, esc, featureLabel, grid, API_BASE, TIER_COLOUR, docLine,
-        modal, closeModal, resizeImage, patientSession, authHeader, downloadReport,
+        modal, closeModal, resizeImage, patientSession, authHeader, downloadReport, saveBlob,
         onRerender: fn => rerenderHooks.push(fn),
         // Point the shared advisor at a patient's result
         setResult(result) { state.result = result; state.inputs = result ? result.inputs : null; if (result) advisorIntro(); else clearResult(); },
     };
 
-    return { core, enter, home, showTab, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
+    return { core, enter, home, showTab, bookPatient, referPatient, patientAction, setMode, assess, whatIf, selectPatient, newPatient, downloadPdf, ask, toggleVoice,
              toggleTheme, reviewDocument, filterQueue: renderQueue,
              login, logout, fillLogin, togglePassword, toggleDoctorMenu, doctorPhoto, openPasswordChange,
              changePassword, openActivity, viewDocument, closeModal, issueActivationCode,

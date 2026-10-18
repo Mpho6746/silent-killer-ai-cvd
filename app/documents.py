@@ -40,10 +40,10 @@ MAX_BYTES = 5 * 1024 * 1024
 # Plausible ranges; anything outside is treated as a misread and dropped
 RANGES = {
     "sbp": (70, 260), "dbp": (40, 160), "heart_rate": (30, 220),
-    "ldl": (0.5, 20), "total_cholesterol": (1, 20), "glucose": (1, 40),
+    "ldl": (0.5, 20), "hdl": (0.2, 5), "total_cholesterol": (1, 20), "glucose": (1, 40),
     "height_cm": (100, 230), "weight_kg": (30, 300),
 }
-MG_PER_MMOL = {"ldl": 38.67, "total_cholesterol": 38.67, "glucose": 18.0}
+MG_PER_MMOL = {"ldl": 38.67, "hdl": 38.67, "total_cholesterol": 38.67, "glucose": 18.0}
 
 
 def payload_bytes(payload):
@@ -128,6 +128,7 @@ PATTERNS = {
     "heart_rate": rf"(?:heart\s*rate|pulse)[^\d]{{0,30}}{NUM}",
     "ldl": rf"\bLDL\b[^\d]{{0,30}}{NUM}{UNIT}",
     "total_cholesterol": rf"total\s*cholesterol[^\d]{{0,30}}{NUM}{UNIT}",
+    "hdl": rf"HDL[^\d]{{0,30}}{NUM}{UNIT}",
     "glucose": rf"(?:glucose|blood\s*sugar)[^\d]{{0,30}}{NUM}{UNIT}",
     "height_cm": rf"height[^\d]{{0,20}}{NUM}\s*cm",
     "weight_kg": rf"weight[^\d]{{0,20}}{NUM}\s*kg",
@@ -151,7 +152,7 @@ def _parse_text(text, issuers):
     m = re.search(PATTERNS["bp"], text, re.I)
     if m:
         vitals["sbp"], vitals["dbp"] = float(m.group(1)), float(m.group(2))
-    for key in ["heart_rate", "ldl", "total_cholesterol", "glucose", "height_cm", "weight_kg"]:
+    for key in ["heart_rate", "ldl", "hdl", "total_cholesterol", "glucose", "height_cm", "weight_kg"]:
         m = re.search(PATTERNS[key], text, re.I)
         if not m:
             continue

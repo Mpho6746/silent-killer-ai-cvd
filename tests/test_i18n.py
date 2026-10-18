@@ -10,6 +10,12 @@ I18N = (WEB / "i18n.js").read_text(encoding="utf-8")
 LANGS = ["en", "af", "zu", "xh", "nr", "nso", "st", "tn", "ss", "ve", "ts"]
 
 
+def staff_keys():
+    """English-only staff text (window.SKAI_STAFF_TEXT), used as a fallback by t()."""
+    block = re.search(r"window\.SKAI_STAFF_TEXT = \{(.*?)\n\};", I18N, re.S)
+    return set(re.findall(r"(?:^|,)\s*(\w+):\s*[\"']", block.group(1), re.M)) if block else set()
+
+
 def keys_for(lang):
     block = re.search(rf"\n    {lang}: \{{(.*?)\n    \}},", I18N, re.S).group(1)
     # keys sit at the start of a line or after a comma (not inside text like "the result:")
@@ -22,12 +28,12 @@ def keys_used_by_ui():
     from app.patient_api import SYMPTOMS
 
     html = (WEB / "index.html").read_text(encoding="utf-8")
-    js = (WEB / "app.js").read_text(encoding="utf-8") + (WEB / "patient.js").read_text(encoding="utf-8")
+    js = "".join((WEB / f).read_text(encoding="utf-8") for f in ("app.js", "patient.js", "staff.js"))
     used = set(re.findall(r'data-i18n(?:-placeholder|-title)?="(\w+)"', html))
     used |= set(re.findall(r"\bt\('(\w+)'", js))
     used |= {f"f_{k}" for k in re.findall(r"\{ key: '(\w+)'", js)}       # form field labels
     used |= {f"tier_{t}" for t in ["low", "moderate", "high", "critical"]}
-    used |= {f"flag_{f}" for f in ["high_risk", "rising", "follow_up_due", "needs_verification"]}
+    used |= {f"flag_{f}" for f in ["high_risk", "rising", "follow_up_due", "needs_verification", "referral_overdue"]}
     used |= {f"q_{q}" for q in ["why", "lower", "doctor"]}
     used |= {f"action_{a}" for a in ["lower_bp", "lower_cholesterol", "control_sugar", "quit_smoking",
                                      "lower_ldl", "healthy_weight", "all_changes"]}
@@ -43,9 +49,10 @@ def keys_used_by_ui():
     used |= {f"v_{k}" for k in RANGES} | {"v_bp", "v_bmi"}
     # Audit-log actions written by the API (shown in the activity log)
     app_dir = Path(advice_py).parent
-    log_src = "".join((app_dir / f).read_text(encoding="utf-8") for f in ("auth.py", "api.py", "patient_api.py", "patient_auth.py"))
+    log_src = "".join((app_dir / f).read_text(encoding="utf-8") for f in ("auth.py", "api.py", "patient_api.py", "patient_auth.py", "triage.py", "care.py", "interop.py", "monitoring.py"))
     used |= {f"act_{a}" for a in re.findall(r'\.log\([^,]+, "(\w+)"', log_src)}
     used |= {"act_review_approve", "act_review_reject"}   # chosen with a conditional expression
+    used |= {f"act_referral_{s}" for s in ("arrived", "seen", "closed", "cancelled")}
     return used
 
 
@@ -61,7 +68,7 @@ def test_every_language_has_every_english_key():
 
 
 def test_ui_only_uses_defined_keys():
-    undefined = keys_used_by_ui() - keys_for("en")
+    undefined = keys_used_by_ui() - keys_for("en") - staff_keys()
     assert not undefined, f"used but not defined: {sorted(undefined)}"
 
 

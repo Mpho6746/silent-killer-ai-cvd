@@ -31,6 +31,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.advice import advice_for, bmi, next_checkup
 from app.auth import require_clinician
+from app.scores import for_patient
+from app.care import patient_appointments, patient_referrals
+from app.facilities import require, require_visible
 from app.patient_auth import require_patient
 from app.documents import MAX_BYTES, read_document, sha256
 from app.storage import today
@@ -73,6 +76,8 @@ class SelfCheck(BaseModel):
     cigarettes_per_day: float = Field(0, ge=0, le=80)
     years_smoked: float = Field(0, ge=0, le=80)
     family_history: bool = False
+    bp_treated: bool = False        # on blood pressure medication (needed by the Framingham score)
+    diabetes: bool = False          # told by a health worker that they have diabetes
 
 
 class Medication(BaseModel):
@@ -155,16 +160,19 @@ def document_file(document_id: int, request: Request, clinician=Depends(require_
     doc = _store(request).get_document(document_id, with_content=True)
     if not doc:
         raise HTTPException(404, "Document not found")
-    return Response(doc["content"], media_type="application/pdf",
+    require_visible(_store(request), clinician, doc["patient_id"])
+    media = "application/json" if doc["filename"].endswith(".json") else "application/pdf"   # FHIR lab results are JSON
+    return Response(doc["content"], media_type=media,
                     headers={"Content-Disposition": f'inline; filename="{doc["filename"]}"'})
 
 
 @router.post("/api/documents/{document_id}/review")
-def review_document(document_id: int, review: Review, request: Request, clinician=Depends(require_clinician)):
+def review_document(document_id: int, review: Review, request: Request, clinician=Depends(require("review_document"))):
     store = _store(request)
     doc = store.get_document(document_id)
     if not doc:
         raise HTTPException(404, "Document not found")
+    require_visible(store, clinician, doc["patient_id"])
     if doc["status"] != "pending_review":
         raise HTTPException(409, f"Document is already {doc['status']}")
     store.review_document(document_id, review.approve, reviewer=clinician["id"])
@@ -204,6 +212,7 @@ def self_check(patient_id: str, answers: SelfCheck, request: Request, _owner=Dep
     result["assessment_id"] = store.add_assessment(patient_id, "lifestyle", inputs, result["probability"], result["tier"])
     result["vitals_source"] = _source(document)
     result["inputs"] = inputs
+    result["validated_score"] = for_patient(profile.get("sex"), inputs, document["vitals"])
     return result
 
 
@@ -229,6 +238,7 @@ def dashboard(patient_id: str, request: Request, _owner=Depends(require_patient)
         result.update(assessment_id=latest["id"], created_at=latest["created_at"], inputs=latest["inputs"])
         doc = store.get_document(latest["inputs"].get("document_id")) if latest["inputs"].get("document_id") else None
         result["vitals_source"] = _source(doc) if doc else None
+        result["validated_score"] = for_patient(profile.get("sex"), latest["inputs"], doc["vitals"] if doc else {})
 
     history = [{"date": a["created_at"], "probability": a["probability"], "tier": a["tier"]}
                for a in store.get_patient(patient_id)["assessments"] if a["kind"] == "lifestyle"]
@@ -257,6 +267,8 @@ def dashboard(patient_id: str, request: Request, _owner=Depends(require_patient)
         "advice": advice,
         "next_checkup": next_checkup(document["document_date"], result["tier"] if result else None) if document else None,
         "symptom_options": SYMPTOMS,
+        "appointments": patient_appointments(store, patient_id),
+        "referrals": patient_referrals(store, patient_id),
     }
 
 

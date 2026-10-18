@@ -18,10 +18,12 @@ Endpoints
 Clinician endpoints (clinical assessment, triage queue, patient records,
 document review) need a signed-in clinician: header "Authorization: Bearer <token>".
 """
+import asyncio
 import json
 import os
 import warnings
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -33,7 +35,19 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
 from app import demo_data
-from app.auth import optional_clinician, require_clinician, seed_clinicians
+from app.auth import DEMO_PASSWORD, hash_password, optional_clinician, require_clinician, seed_clinicians
+from app.facilities import allowed, require, require_visible, seed_facilities, visible_patient_ids
+from app.facilities import router as facilities_router
+from app.triage import router as triage_router
+from app.triage import seed_waiting_room
+from app.care import router as care_router
+from app.care import seed_care
+from app.messaging import router as messaging_router
+from app.messaging import dispatcher_loop
+from app.interop import router as interop_router
+from app.privacy import router as privacy_router
+from app.monitoring import router as monitoring_router
+from app.monitoring import seed_outcomes
 from app.auth import router as auth_router
 from app.patient_api import router as patient_router
 from app.patient_auth import router as patient_auth_router
@@ -120,8 +134,15 @@ async def lifespan(app):
         demo_data.seed(app.state.store, app.state.clinical, app.state.lifestyle)
     if demo:
         seed_patient_accounts(app.state.store)
+        seed_facilities(app.state.store, hash_password(DEMO_PASSWORD))
+        seed_waiting_room(app.state.store)
+        seed_care(app.state.store)
+        seed_outcomes(app.state.store)
     app.state.model_info = _model_info(app.state.clinical)
+    # Sends due SMS/WhatsApp reminders every minute (see app/messaging.py)
+    dispatcher = asyncio.create_task(dispatcher_loop(app.state.store))
     yield
+    dispatcher.cancel()
 
 
 app = FastAPI(title="SKAI - Silent Killer AI", version="2.0", lifespan=lifespan)
@@ -146,10 +167,18 @@ def _assess(kind, request, clinician):
     inputs = request.inputs.model_dump(exclude_none=True)
     result = model.assess(inputs)
     if request.patient:
-        # Saving to a patient record is a clinical action: it must be signed and attributable
+        # Saving to a patient record is a clinical action: it must be signed, allowed and attributable
         if not clinician:
             raise HTTPException(401, detail={"code": "not_signed_in"})
+        if not allowed(clinician, "assess"):
+            raise HTTPException(403, detail={"code": "role_not_allowed"})
         store = app.state.store
+        if store.get_profile(request.patient.id):
+            require_visible(store, clinician, request.patient.id)
+        else:
+            # new patients are registered at the clinician's facility
+            store.upsert_patient(request.patient.id, request.patient.name, request.patient.sex)
+            store.conn.execute("UPDATE patients SET facility_id = ? WHERE id = ?", (clinician.get("facility_id"), request.patient.id))
         store.upsert_patient(request.patient.id, request.patient.name, request.patient.sex)
         result["assessment_id"] = store.add_assessment(
             request.patient.id, kind, inputs, result["probability"], result["tier"], created_by=clinician["id"])
@@ -170,7 +199,17 @@ def assess_lifestyle(request: LifestyleRequest, clinician=Depends(optional_clini
 
 @app.get("/api/patients")
 def patients(clinician=Depends(require_clinician)):
-    return app.state.store.triage_queue()
+    store = app.state.store
+    visible = visible_patient_ids(store, clinician)
+    queue = [q for q in store.triage_queue() if visible is None or q["id"] in visible]
+    overdue = {r[0] for r in store.conn.execute(
+        "SELECT patient_id FROM referrals WHERE status = 'sent' AND due_by < ?",
+        (datetime.now(timezone.utc).isoformat(timespec="seconds"),))}
+    for q in queue:
+        if q["id"] in overdue:
+            q["flags"].append("referral_overdue")
+    queue.sort(key=lambda q: (-len(q["flags"]), -q["latest"]["probability"]))
+    return queue
 
 
 @app.get("/api/patients/{patient_id}")
@@ -178,6 +217,7 @@ def patient(patient_id: str, clinician=Depends(require_clinician)):
     p = app.state.store.get_patient(patient_id)
     if not p:
         raise HTTPException(404, "Patient not found")
+    require_visible(app.state.store, clinician, patient_id)
     app.state.store.log(clinician["id"], "view_patient", patient_id)
     return p
 
@@ -191,6 +231,8 @@ def report(assessment_id: int, clinician=Depends(optional_clinician), patient_id
     # Medical reports: a signed-in clinician, or the patient the report belongs to
     if not clinician and patient_id != assessment["patient_id"]:
         raise HTTPException(401 if not patient_id else 403, detail={"code": "not_your_record"})
+    if clinician:
+        require_visible(store, clinician, assessment["patient_id"])
     patient = store.get_patient(assessment["patient_id"])
     model = app.state.clinical if assessment["kind"] == "clinical" else app.state.lifestyle
     # Re-running the model on the stored inputs reproduces the original result exactly
@@ -208,6 +250,13 @@ def model_info():
 app.include_router(patient_router)
 app.include_router(auth_router)
 app.include_router(patient_auth_router)
+app.include_router(facilities_router)
+app.include_router(triage_router)
+app.include_router(care_router)
+app.include_router(messaging_router)
+app.include_router(interop_router)
+app.include_router(privacy_router)
+app.include_router(monitoring_router)
 
 
 # The web app (index.html, app.js, i18n.js) at the site root. Mounted last so

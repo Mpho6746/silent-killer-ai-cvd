@@ -1,0 +1,15 @@
+# What the SKAI web server needs (no notebooks, Streamlit or test tools).
+# Versions match the ones the models were saved with: pickled scikit-learn
+# models must be loaded with the same scikit-learn version.
+fastapi==0.143.2
+uvicorn==0.54.0
+pandas==2.2.2
+numpy==2.4.6
+scikit-learn==1.9.0
+shap==0.51.0
+matplotlib==3.11.1
+joblib==1.5.3
+reportlab==5.0.1
+pypdf==6.21.0
+python-multipart==0.0.32
+cryptography==46.0.3
