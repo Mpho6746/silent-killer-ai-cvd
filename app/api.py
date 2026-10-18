@@ -46,6 +46,7 @@ from app.messaging import router as messaging_router
 from app.messaging import dispatcher_loop
 from app.interop import router as interop_router
 from app.privacy import router as privacy_router
+from app.patient_email import router as patient_email_router
 from app.monitoring import router as monitoring_router
 from app.monitoring import seed_outcomes
 from app.auth import router as auth_router
@@ -256,6 +257,7 @@ app.include_router(care_router)
 app.include_router(messaging_router)
 app.include_router(interop_router)
 app.include_router(privacy_router)
+app.include_router(patient_email_router)
 app.include_router(monitoring_router)
 
 

@@ -2,7 +2,10 @@
 Patient accounts for the SKAI Health app.
 
 Two ways to get an account:
-  1. Self-registration: a new patient creates a profile and chooses a password.
+  1. Self-registration: a new patient signs up with their email address and a
+     password. SKAI creates their patient ID (e.g. SKAI-482917) and emails a
+     confirmation code with it; the account works once the email is confirmed
+     (app/patient_email.py). They can sign in with the email or the patient ID.
   2. Clinic registration: a patient whose record a clinic created (no password
      yet) gets a one-time activation code from a signed-in clinician, valid
      for 24 hours and 5 tries, and uses it to set their own password.
@@ -10,8 +13,8 @@ Two ways to get an account:
 A patient session only opens that patient's own record. Passwords, session
 tokens and activation codes are stored as hashes only (see app/auth.py).
 
-    POST /api/patient-auth/register     {patient_id, name, dob, sex, password}
-    POST /api/patient-auth/login        {patient_id, password}
+    POST /api/patient-auth/register     {name, email, dob, sex, password, consent} -> {patient_id, needs_verification}
+    POST /api/patient-auth/login        {patient_id (or email), password}
     POST /api/patient-auth/activate     {patient_id, code, password}
     POST /api/patient-auth/logout
     GET  /api/patient-auth/me
@@ -27,6 +30,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.auth import LOCK_MINUTES, MAX_ATTEMPTS, SESSION_HOURS, hash_password, token_hash, verify_password
 from app.facilities import require, require_visible
+from app.patient_email import find_by_email, new_patient_id, normalise_email, send_verification
 
 router = APIRouter()
 
@@ -96,7 +100,8 @@ def require_patient(patient_id: str, signed_in=Depends(session_patient_id)):
 # ---------- request bodies ----------
 
 class Register(BaseModel):
-    patient_id: str = Field(pattern=ID_PATTERN)
+    patient_id: Optional[str] = Field(None, pattern=ID_PATTERN)   # normally created by SKAI
+    email: Optional[str] = Field(None, max_length=120)
     name: str = Field(min_length=1, max_length=80)
     dob: date
     sex: Optional[Literal["M", "F"]] = None
@@ -113,7 +118,7 @@ class Register(BaseModel):
 
 
 class Login(BaseModel):
-    patient_id: str = Field(min_length=1, max_length=40)
+    patient_id: str = Field(min_length=1, max_length=120)     # the patient ID or the email address
     password: str = Field(min_length=1, max_length=200)
 
 
@@ -138,24 +143,38 @@ def register(body: Register, request: Request):
     store = request.app.state.store
     if not body.consent:
         raise HTTPException(422, detail={"code": "consent_required"})
-    if store.get_profile(body.patient_id):
+    email = None
+    if body.email:
+        email = normalise_email(body.email)
+        if not email:
+            raise HTTPException(422, detail={"code": "email_invalid"})
+        if find_by_email(store, email):
+            raise HTTPException(409, detail={"code": "email_taken"})
+    if body.patient_id and store.get_profile(body.patient_id):
         raise HTTPException(409, detail={"code": "id_taken"})
-    store.upsert_patient(body.patient_id, body.name, body.sex, dob=body.dob.isoformat())
-    store.update_patient_credentials(body.patient_id, password_hash=hash_password(body.password))
+    pid = body.patient_id or new_patient_id(store)
+    store.upsert_patient(pid, body.name, body.sex, dob=body.dob.isoformat())
+    store.update_patient_credentials(pid, password_hash=hash_password(body.password))
     facility = store.conn.execute("SELECT id FROM facilities WHERE id = ?", (body.facility_id,)).fetchone() if body.facility_id else None
     if not facility:   # unknown or missing: the first clinic
         facility = store.conn.execute("SELECT id FROM facilities WHERE kind = 'clinic' ORDER BY name LIMIT 1").fetchone()
     if facility:
-        store.conn.execute("UPDATE patients SET facility_id = ? WHERE id = ?", (facility[0], body.patient_id))
-        store.conn.commit()
-    record_consent(store, body.patient_id)
-    return _session(store, body.patient_id)
+        store.conn.execute("UPDATE patients SET facility_id = ? WHERE id = ?", (facility[0], pid))
+    if email:
+        store.conn.execute("UPDATE patients SET email = ? WHERE id = ?", (email, pid))
+    store.conn.commit()
+    record_consent(store, pid)
+    if email:   # the account works once the email address is confirmed
+        send_verification(store, pid)
+        return {"patient_id": pid, "email": email, "needs_verification": True}
+    return {**_session(store, pid), "patient_id": pid}
 
 
 @router.post("/api/patient-auth/login")
 def login(body: Login, request: Request):
     store = request.app.state.store
-    creds = store.get_patient_credentials(store.resolve_patient_id(body.patient_id))
+    typed = body.patient_id.strip()
+    creds = store.get_patient_credentials((find_by_email(store, typed) or "") if "@" in typed else store.resolve_patient_id(typed))
     now = _now()
     if creds and creds["locked_until"] and datetime.fromisoformat(creds["locked_until"]) > now:
         raise HTTPException(429, detail={"code": "locked"})
@@ -166,6 +185,9 @@ def login(body: Login, request: Request):
             store.update_patient_credentials(creds["id"], failed_attempts=0 if locked else attempts, locked_until=locked)
         raise HTTPException(401, detail={"code": "login_failed"})
     store.update_patient_credentials(creds["id"], failed_attempts=0, locked_until=None)
+    profile = store.get_profile(creds["id"])
+    if profile.get("email") and not profile.get("email_verified_at"):
+        raise HTTPException(403, detail={"code": "email_unverified", "patient_id": creds["id"], "email": profile["email"]})
     return _session(store, creds["id"])
 
 

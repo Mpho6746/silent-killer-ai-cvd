@@ -59,12 +59,14 @@ SKAI.patient = (() => {
         $(id).classList.toggle('hidden', !message);
     }
 
-    const AUTH_ERRORS = { login_failed: 'pt_login_failed', locked: 'login_locked', id_taken: 'pt_id_taken', code_invalid: 'pt_code_invalid' };
+    const AUTH_ERRORS = { login_failed: 'pt_login_failed', locked: 'login_locked', id_taken: 'pt_id_taken', code_invalid: 'pt_code_invalid',
+                          email_invalid: 'err_email_invalid', email_taken: 'err_email_taken' };
     const authError = e => (AUTH_ERRORS[e.message] ? t(AUTH_ERRORS[e.message]) : `${t('error_generic')} (${e.message})`);
 
     async function startSession(r) {
         patientSession.set(r.token);
         ['pt-login-pass', 'pt-new-pass', 'pt-new-pass2', 'pt-act-pass', 'pt-act-pass2', 'pt-act-code'].forEach(id => { $(id).value = ''; });
+        closeFlow();
         await load(r.profile.id);
     }
 
@@ -77,6 +79,7 @@ SKAI.patient = (() => {
     function showSignIn() {
         data = null;
         $('pt-signin').classList.remove('hidden');
+        closeFlow();
         $('pt-dash').classList.add('hidden');
         $('pt-logout').classList.add('hidden');
         SKAI.core.setResult(null);
@@ -85,10 +88,13 @@ SKAI.patient = (() => {
     async function signIn() {
         if (!$('pt-login-form').reportValidity()) return;
         formError('pt-login-error', '');
+        const identifier = $('pt-login-id').value.trim();
         try {
-            await startSession(await api('/api/patient-auth/login',
-                { patient_id: $('pt-login-id').value.trim(), password: $('pt-login-pass').value }));
-        } catch (e) { formError('pt-login-error', authError(e)); }
+            await startSession(await api('/api/patient-auth/login', { patient_id: identifier, password: $('pt-login-pass').value }));
+        } catch (e) {
+            if (e.message === 'email_unverified') { showVerify(identifier, identifier.includes('@') ? identifier : null, null); return; }
+            formError('pt-login-error', authError(e));
+        }
     }
 
     async function create() {
@@ -96,12 +102,14 @@ SKAI.patient = (() => {
         if ($('pt-new-pass').value !== $('pt-new-pass2').value) { formError('pt-create-error', t('pt_password_mismatch')); return; }
         formError('pt-create-error', '');
         try {
-            await startSession(await api('/api/patient-auth/register', {
-                patient_id: $('pt-new-id').value.trim(), name: $('pt-new-name').value.trim(),
+            const r = await api('/api/patient-auth/register', {
+                email: $('pt-new-email').value.trim(), name: $('pt-new-name').value.trim(),
                 dob: $('pt-new-dob').value, sex: $('pt-new-sex').value, password: $('pt-new-pass').value,
                 consent: $('pt-new-consent').checked,
-            }));
-            toast(t('pt_created'), 'success');
+            });
+            ['pt-new-pass', 'pt-new-pass2'].forEach(id => { $(id).value = ''; });
+            if (r.needs_verification) showVerify(r.email, r.email, r.patient_id);
+            else { await startSession(r); toast(t('pt_created'), 'success'); }
         } catch (e) { formError('pt-create-error', authError(e)); }
     }
 
@@ -116,6 +124,118 @@ SKAI.patient = (() => {
             }));
             toast(t('pt_activated'), 'success');
         } catch (e) { formError('pt-activate-error', authError(e)); }
+    }
+
+    // ---------- email confirmation and password reset ----------
+    let flow = {};
+    let demoInbox = null;
+    const flowButton = (label, onclick, primary = true) => `<button type="${primary ? 'submit' : 'button'}" ${onclick ? `onclick="${onclick}"` : ''}
+        class="${primary ? 'on-accent w-full bg-gradient-to-r from-skai-secondary to-emerald-500 text-white py-3' : 'text-xs text-skai-secondary hover:underline py-1'} font-bold rounded-xl">${label}</button>`;
+
+    function closeFlow() {
+        flow = {};
+        $('pt-flow').classList.add('hidden');
+        $('pt-auth-main').classList.remove('hidden');
+    }
+
+    async function inboxPanel() {
+        if (demoInbox === null) {
+            try { demoInbox = (await api('/api/config')).demo_inbox; } catch (e) { demoInbox = false; }
+        }
+        if (!demoInbox) return '';
+        return `<div class="mt-4 rounded-2xl border border-dashed border-amber-500/60 p-3">
+            <button type="button" onclick="SKAI.patient.openInbox()" class="text-xs font-bold text-amber-300"><i class="fa-solid fa-envelope-open-text mr-1"></i>${t('pt_demo_inbox')}</button>
+            <p class="text-[11px] text-slate-400 mt-1">${t('pt_demo_inbox_note')}</p>
+            <div id="pt-inbox" class="mt-2 space-y-2"></div></div>`;
+    }
+
+    async function openInbox() {
+        const mails = await api(`/api/demo/inbox?identifier=${enc(flow.identifier)}`);
+        $('pt-inbox').innerHTML = mails.length ? mails.map(m => `
+            <div class="bg-slate-900/70 border border-slate-700 rounded-xl p-3 text-xs">
+                <p class="font-bold text-white">${esc(m.subject)}</p>
+                <p class="text-slate-300 whitespace-pre-line mt-1">${esc(m.body)}</p></div>`).join('')
+            : `<p class="text-xs text-slate-400">${t('pt_inbox_empty')}</p>`;
+    }
+
+    function showFlow(html) {
+        $('pt-auth-main').classList.add('hidden');
+        $('pt-flow').classList.remove('hidden');
+        $('pt-flow').innerHTML = html;
+    }
+
+    async function showVerify(identifier, email, patientId) {
+        flow = { identifier, email, patientId };
+        showFlow(`
+            <h2 class="text-lg font-extrabold text-white mb-2"><i class="fa-solid fa-envelope-circle-check text-skai-secondary mr-2"></i>${t('pt_verify_title')}</h2>
+            <p class="text-sm text-slate-300">${email ? t('pt_verify_text', { email: `<b>${esc(email)}</b>` }) : t('pt_verify_text_generic')}</p>
+            ${patientId ? `<div class="mt-3 rounded-2xl bg-teal-500/10 border border-teal-500/40 p-3 text-sm text-slate-200">${t('pt_your_id', { id: `<b class="text-white text-base tracking-wider">${esc(patientId)}</b>` })}</div>` : ''}
+            <form id="pt-verify-form" class="mt-4 space-y-2" onsubmit="event.preventDefault(); SKAI.patient.verify();">
+                <label class="field-label" for="pt-verify-code">${t('pt_code')}</label>
+                <input id="pt-verify-code" class="field tracking-[0.4em] font-bold text-center text-lg" inputmode="numeric" pattern="\\d{6}" maxlength="6" autocomplete="one-time-code" required>
+                <p id="pt-verify-error" class="hidden text-xs font-bold text-red-400"></p>
+                ${flowButton(t('pt_verify_btn'))}
+            </form>
+            <div class="flex justify-between mt-2">${flowButton(t('pt_resend'), 'SKAI.patient.resend()', false)}${flowButton(t('pt_back_signin'), 'SKAI.patient.closeFlow()', false)}</div>
+            ${await inboxPanel()}`);
+        $('pt-verify-code').focus();
+    }
+
+    async function verify() {
+        if (!$('pt-verify-form').reportValidity()) return;
+        try {
+            await startSession(await api('/api/patient-auth/verify-email', { identifier: flow.identifier, code: $('pt-verify-code').value.trim() }));
+            toast(t('pt_verified'), 'success');
+        } catch (e) { formError('pt-verify-error', authError(e)); }
+    }
+
+    async function resend() {
+        try { await api('/api/patient-auth/resend-code', { identifier: flow.identifier }); toast(t('pt_code_sent'), 'success'); }
+        catch (e) { toast(t('error_generic'), 'error'); }
+    }
+
+    async function showForgot() {
+        flow = { identifier: $('pt-login-id').value.trim() };
+        showFlow(`
+            <h2 class="text-lg font-extrabold text-white mb-2"><i class="fa-solid fa-key text-skai-secondary mr-2"></i>${t('pt_forgot_title')}</h2>
+            <p class="text-sm text-slate-300">${t('pt_forgot_text')}</p>
+            <form id="pt-forgot-form" class="mt-4 space-y-2" onsubmit="event.preventDefault(); SKAI.patient.sendReset();">
+                <input id="pt-forgot-id" class="field" maxlength="120" value="${esc(flow.identifier)}" placeholder="${t('pt_signin_ph')}" required>
+                ${flowButton(t('pt_send_code'))}
+            </form>
+            <form id="pt-reset-form" class="hidden mt-4 space-y-2" onsubmit="event.preventDefault(); SKAI.patient.resetPassword();">
+                <label class="field-label" for="pt-reset-code">${t('pt_code')}</label>
+                <input id="pt-reset-code" class="field tracking-[0.4em] font-bold text-center text-lg" inputmode="numeric" pattern="\\d{6}" maxlength="6" autocomplete="one-time-code" required>
+                <label class="field-label" for="pt-reset-pass">${t('pt_new_password')}</label>
+                <input id="pt-reset-pass" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required>
+                <label class="field-label" for="pt-reset-pass2">${t('pt_confirm_password')}</label>
+                <input id="pt-reset-pass2" type="password" class="field" minlength="8" maxlength="200" autocomplete="new-password" required>
+                <p id="pt-reset-error" class="hidden text-xs font-bold text-red-400"></p>
+                ${flowButton(t('pt_reset_btn'))}
+            </form>
+            <div class="mt-2">${flowButton(t('pt_back_signin'), 'SKAI.patient.closeFlow()', false)}</div>
+            <div id="pt-forgot-inbox"></div>`);
+        $('pt-forgot-id').focus();
+    }
+
+    async function sendReset() {
+        if (!$('pt-forgot-form').reportValidity()) return;
+        flow.identifier = $('pt-forgot-id').value.trim();
+        await api('/api/patient-auth/forgot', { identifier: flow.identifier });
+        toast(t('pt_code_sent'), 'success');
+        $('pt-forgot-form').classList.add('hidden');
+        $('pt-reset-form').classList.remove('hidden');
+        $('pt-forgot-inbox').innerHTML = await inboxPanel();
+        $('pt-reset-code').focus();
+    }
+
+    async function resetPassword() {
+        if (!$('pt-reset-form').reportValidity()) return;
+        if ($('pt-reset-pass').value !== $('pt-reset-pass2').value) { formError('pt-reset-error', t('pt_password_mismatch')); return; }
+        try {
+            await startSession(await api('/api/patient-auth/reset', { identifier: flow.identifier, code: $('pt-reset-code').value.trim(), password: $('pt-reset-pass').value }));
+            toast(t('pt_reset_done'), 'success');
+        } catch (e) { formError('pt-reset-error', authError(e)); }
     }
 
     async function logout() {
@@ -738,5 +858,6 @@ SKAI.patient = (() => {
 
     return { open, signIn, create, activate, showForm, sessionExpired, logout, whatIf, pickMood, editCheckin, saveCheckin, toggleDose, removeMed,
              openAddMed, addTime, saveMed, openUpload, upload, openSelfCheck, runSelfCheck, photo, closeModal,
-             openPrivacy, openSettings, saveSettings, download };
+             openPrivacy, openSettings, saveSettings, download,
+             showForgot, sendReset, resetPassword, verify, resend, openInbox, closeFlow };
 })();

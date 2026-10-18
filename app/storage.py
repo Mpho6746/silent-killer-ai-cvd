@@ -108,6 +108,25 @@ CREATE TABLE IF NOT EXISTS activation_codes (
     expires_at    TEXT NOT NULL,
     attempts      INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS email_codes (
+    patient_id  TEXT NOT NULL REFERENCES patients(id),
+    purpose     TEXT NOT NULL CHECK (purpose IN ('verify', 'reset')),
+    code_hash   TEXT NOT NULL,                       -- hashed with the patient ID and purpose
+    expires_at  TEXT NOT NULL,
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (patient_id, purpose)
+);
+CREATE TABLE IF NOT EXISTS emails (                  -- email outbox (see app/patient_email.py)
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id  TEXT REFERENCES patients(id),
+    to_address  TEXT NOT NULL,
+    kind        TEXT NOT NULL,                       -- verify | welcome | reset
+    subject     TEXT NOT NULL,
+    body        TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'sent',
+    provider    TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS facilities (
     id          TEXT PRIMARY KEY,
     name        TEXT NOT NULL,
@@ -193,7 +212,7 @@ MIGRATIONS = {
     "patients": {"dob": "TEXT", "photo": "TEXT",
                  "password_hash": "TEXT", "failed_attempts": "INTEGER NOT NULL DEFAULT 0", "locked_until": "TEXT",
                  "facility_id": "TEXT", "phone": "TEXT", "sa_id": "TEXT", "sms_opt_in": "INTEGER NOT NULL DEFAULT 0",
-                 "consent_at": "TEXT", "consent_version": "TEXT"},
+                 "consent_at": "TEXT", "consent_version": "TEXT", "email": "TEXT", "email_verified_at": "TEXT"},
     "clinicians": {"role": "TEXT NOT NULL DEFAULT 'doctor'", "facility_id": "TEXT"},
     "assessments": {"created_by": "TEXT"},     # clinician who saved it (NULL = patient self-check)
     "documents": {"reviewed_by": "TEXT"},       # clinician who approved/rejected it
@@ -224,6 +243,8 @@ class Store:
             for column, kind in columns.items():
                 if column not in existing:
                     self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+        # One account per email address, ignoring capitals
+        self.conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS patients_email ON patients (lower(email)) WHERE email IS NOT NULL")
         self.conn.commit()
 
     def is_empty(self):

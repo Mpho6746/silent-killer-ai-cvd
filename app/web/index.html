@@ -299,11 +299,14 @@
             <h1 class="text-2xl font-extrabold text-white" data-i18n="pt_welcome_title">Welcome to SKAI Health</h1>
             <p class="text-sm text-slate-300 mt-2" data-i18n="pt_welcome_text">Your personal heart-health companion. Track your verified results, medication and daily habits in one place.</p>
 
+            <div id="pt-flow" class="hidden mt-6 text-left"></div>
+            <div id="pt-auth-main">
             <form id="pt-login-form" class="mt-6 space-y-2 text-left" onsubmit="event.preventDefault(); SKAI.patient.signIn();">
-                <input id="pt-login-id" class="field" maxlength="40" autocomplete="username" data-i18n-placeholder="pt_enter_id" placeholder="Your patient ID" required>
+                <input id="pt-login-id" class="field" maxlength="120" autocomplete="username" data-i18n-placeholder="pt_signin_ph" placeholder="Patient ID or email" required>
                 <input id="pt-login-pass" type="password" class="field" maxlength="200" autocomplete="current-password" data-i18n-placeholder="login_pass" placeholder="Password" required>
                 <p id="pt-login-error" class="hidden text-xs font-bold text-red-400"></p>
                 <button class="on-accent w-full bg-skai-secondary hover:bg-teal-500 text-white font-bold py-3 rounded-xl"><i class="fa-solid fa-right-to-bracket mr-2"></i><span data-i18n="login_btn">Sign in</span></button>
+                <button type="button" onclick="SKAI.patient.showForgot()" class="w-full text-xs text-skai-secondary font-bold hover:underline pt-1" data-i18n="pt_forgot">Forgot your password?</button>
             </form>
 
             <div class="flex items-center gap-3 my-6 text-xs text-slate-500"><div class="flex-1 border-t border-slate-700"></div><span data-i18n="pt_or">or</span><div class="flex-1 border-t border-slate-700"></div></div>
@@ -315,7 +318,7 @@
 
             <form id="pt-create" class="text-left grid grid-cols-2 gap-3" onsubmit="event.preventDefault(); SKAI.patient.create();">
                 <div class="col-span-2"><label class="field-label" for="pt-new-name" data-i18n="patient_name">Full name</label><input id="pt-new-name" class="field" maxlength="80" required></div>
-                <div><label class="field-label" for="pt-new-id" data-i18n="patient_id">Patient ID</label><input id="pt-new-id" class="field" maxlength="40" pattern="[A-Za-z0-9_\-]+" required></div>
+                <div><label class="field-label" for="pt-new-email" data-i18n="pt_email">Email address</label><input id="pt-new-email" type="email" class="field" maxlength="120" autocomplete="email" required></div>
                 <div><label class="field-label" for="pt-new-dob" data-i18n="pt_dob">Date of birth</label><input id="pt-new-dob" type="date" class="field" min="1900-01-01" required></div>
                 <div class="col-span-2"><label class="field-label" for="pt-new-sex" data-i18n="f_sex">Sex</label>
                     <select id="pt-new-sex" class="field"><option value="F" data-i18n="female">Female</option><option value="M" data-i18n="male">Male</option></select></div>
@@ -341,6 +344,7 @@
                 <p id="pt-activate-error" class="col-span-2 hidden text-xs font-bold text-red-400"></p>
                 <button class="on-accent col-span-2 bg-gradient-to-r from-skai-secondary to-emerald-500 text-white font-bold py-3 rounded-xl" data-i18n="pt_activate_btn">Activate my account</button>
             </form>
+            </div>
         </div>
     </div>
 
