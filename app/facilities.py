@@ -18,6 +18,7 @@ The demo facilities are fictional.
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.auth import require_clinician
+from app.sa_hospitals import HOSPITALS
 
 router = APIRouter()
 
@@ -65,6 +66,12 @@ def seed_facilities(store, password_hash):
     """Creates demo facilities, gives staff roles and facilities, and places demo patients. Safe to run every start."""
     conn = store.conn
     conn.executemany("INSERT OR IGNORE INTO facilities (id, name, kind, district) VALUES (?, ?, ?, ?)", DEMO_FACILITIES)
+    conn.execute("UPDATE facilities SET province = 'Demo district (fictional)' WHERE id IN (?, ?, ?)",
+                 tuple(f[0] for f in DEMO_FACILITIES))
+    # Real public hospitals in every province, as referral destinations (see app/sa_hospitals.py)
+    conn.executemany("""INSERT INTO facilities (id, name, kind, district, province) VALUES (?, ?, 'hospital', ?, ?)
+                        ON CONFLICT(id) DO UPDATE SET name = excluded.name, district = excluded.district,
+                            province = excluded.province""", HOSPITALS)
     for username, (role, facility) in DEMO_STAFF.items():
         conn.execute("UPDATE clinicians SET role = ?, facility_id = COALESCE(facility_id, ?) WHERE id = ?",
                      (role, facility, username))
@@ -127,5 +134,6 @@ def require_visible(store, clinician, patient_id):
 @router.get("/api/facilities")
 def facilities(request: Request):
     """Public list, used when a patient registers and when choosing where to refer."""
-    rows = request.app.state.store.conn.execute("SELECT * FROM facilities ORDER BY kind, name").fetchall()
+    rows = request.app.state.store.conn.execute(
+        "SELECT * FROM facilities ORDER BY province LIKE 'Demo%' DESC, province, kind, name").fetchall()
     return [dict(r) for r in rows]

@@ -149,6 +149,9 @@ def district(request: Request, clinician=Depends(require("dashboard"))):
             "missed_30d": one("SELECT COUNT(*) FROM appointments WHERE facility_id = ? AND status = 'missed' AND starts_at >= ?", since),
             "outcomes": one("SELECT COUNT(*) FROM outcomes o JOIN patients p ON p.id = o.patient_id WHERE p.facility_id = ?"),
         })
+        row = out[-1]
+        if clinician["role"] == "district_manager" and not any(v for key, v in row.items() if key not in ("id", "name", "kind")):
+            out.pop()                        # no activity at this facility
     return out
 
 

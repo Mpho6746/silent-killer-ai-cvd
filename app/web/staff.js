@@ -309,12 +309,20 @@ SKAI.staff = (() => {
         saveBlob(await res.blob(), `Referral_${id}.pdf`);
     }
 
+    // Hospitals grouped by province (the demo district first)
+    function referralOptions(facilities) {
+        const groups = {};
+        facilities.forEach(f => { (groups[f.province || 'Other'] = groups[f.province || 'Other'] || []).push(f); });
+        return Object.entries(groups).map(([province, list]) => `<optgroup label="${esc(province)}">${list.map(f =>
+            `<option value="${f.id}">${esc(f.name)}${f.province && !f.province.startsWith('Demo') ? `, ${esc(f.district)}` : ` (${f.kind})`}</option>`).join('')}</optgroup>`).join('');
+    }
+
     async function openRefer(patientId, name, risk) {
         const facilities = (await api('/api/facilities')).filter(f => f.id !== state.clinician.facility_id);
         modal(`
             <h3 class="text-lg font-extrabold text-white mb-4"><i class="fa-solid fa-share-from-square text-skai-primary mr-2"></i>Refer ${esc(name)}</h3>
             <form id="rf-form" class="space-y-3" onsubmit="event.preventDefault(); SKAI.staff.saveRefer('${esc(patientId)}');">
-                <div><label class="field-label" for="rf-to">Refer to</label><select id="rf-to" class="field">${facilities.map(f => `<option value="${f.id}">${esc(f.name)} (${f.kind})</option>`).join('')}</select></div>
+                <div><label class="field-label" for="rf-to">Refer to</label><select id="rf-to" class="field">${referralOptions(facilities)}</select></div>
                 <div><label class="field-label" for="rf-urgency">Urgency</label><select id="rf-urgency" class="field">
                     <option value="urgent">Urgent (within 2 days)</option><option value="routine">Routine (within 14 days)</option><option value="emergency">Emergency (within 6 hours)</option></select></div>
                 <div><label class="field-label" for="rf-reason">Reason</label><textarea id="rf-reason" class="field" rows="3" maxlength="500" required>${risk ? `SKAI cardiovascular risk ${risk}. ` : ''}</textarea></div>

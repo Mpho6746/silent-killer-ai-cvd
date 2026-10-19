@@ -157,3 +157,21 @@ def test_reminders_only_for_opted_in_patients(client):
     assert not [m for m in outbox if m["patient_id"] == "DEMO-004"]        # Pieter has not opted in
     john = client.get("/api/messages", headers=staff(client, "sfiso.kekana")).json()
     assert any(m["patient_id"] == "DEMO-101" and m["status"] == "sent" for m in john)
+
+
+# ---------- hospitals by province ----------
+
+def test_at_least_five_hospitals_in_every_province(client):
+    facilities = client.get("/api/facilities").json()
+    by_province = {}
+    for f in facilities:
+        by_province.setdefault(f["province"], []).append(f)
+    provinces = {"Gauteng", "Western Cape", "KwaZulu-Natal", "Eastern Cape", "Free State", "Limpopo",
+                 "Mpumalanga", "North West", "Northern Cape"}
+    assert provinces <= set(by_province)
+    assert all(len(by_province[p]) >= 5 and all(f["kind"] == "hospital" for f in by_province[p]) for p in provinces)
+    assert facilities[0]["province"].startswith("Demo")          # the demo district is listed first
+    # a clinic can refer to one of them
+    r = client.post("/api/referrals", headers=staff(client, "sfiso.kekana"),
+                    json={"patient_id": "DEMO-101", "to_facility": "gp-steve-biko", "reason": "Cardiology review", "urgency": "routine"})
+    assert r.status_code == 200

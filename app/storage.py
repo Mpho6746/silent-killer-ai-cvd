@@ -214,6 +214,7 @@ MIGRATIONS = {
                  "facility_id": "TEXT", "phone": "TEXT", "sa_id": "TEXT", "sms_opt_in": "INTEGER NOT NULL DEFAULT 0",
                  "consent_at": "TEXT", "consent_version": "TEXT", "email": "TEXT", "email_verified_at": "TEXT"},
     "clinicians": {"role": "TEXT NOT NULL DEFAULT 'doctor'", "facility_id": "TEXT"},
+    "facilities": {"province": "TEXT"},
     "assessments": {"created_by": "TEXT"},     # clinician who saved it (NULL = patient self-check)
     "documents": {"reviewed_by": "TEXT"},       # clinician who approved/rejected it
 }
